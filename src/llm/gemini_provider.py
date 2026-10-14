@@ -10,7 +10,13 @@ from typing import Any, Callable
 import httpx
 from google.genai import errors
 
-from src.llm.client import LLMError, LLMRequest, LLMResponse, MissingAPIKeyError
+from src.llm.client import (
+    LLMError,
+    LLMRequest,
+    LLMResponse,
+    MissingAPIKeyError,
+    ModelUnavailableError,
+)
 from src.llm.rate_limiter import DailyLimitReached, RateLimiter, backoff_delay
 
 logger = logging.getLogger(__name__)
@@ -27,7 +33,11 @@ def _is_daily_quota_error(exc: errors.APIError) -> bool:
 
 
 class GeminiProvider:
-    """Calls Gemini with client-side rate limiting and retries on 429/5xx/network errors."""
+    """Calls Gemini with client-side rate limiting and retries on 429/5xx/network errors.
+
+    If those errors continue past `max_retries`, raises `ModelUnavailableError` so the
+    client can switch to a fallback model.
+    """
 
     name = "gemini"
 
@@ -72,13 +82,17 @@ class GeminiProvider:
                         f"Gemini reports the daily quota for {request.model} is used up. "
                         "Progress is saved; run the same command again after the quota resets."
                     ) from exc
-                if exc.code not in RETRYABLE_STATUS or attempt == self.max_retries:
+                if exc.code not in RETRYABLE_STATUS:
                     raise
                 reason = f"HTTP {exc.code} {exc.status or ''}".strip()
+                last_error: Exception = exc
             except httpx.TransportError as exc:
-                if attempt == self.max_retries:
-                    raise
                 reason = f"network error ({type(exc).__name__})"
+                last_error = exc
+            if attempt == self.max_retries:
+                raise ModelUnavailableError(
+                    f"{request.model} still unavailable after {attempt + 1} attempts ({reason})"
+                ) from last_error
             delay = backoff_delay(attempt, self.base_delay, self.max_delay)
             logger.warning(
                 "Gemini %s on attempt %d/%d; retrying in %.1fs",

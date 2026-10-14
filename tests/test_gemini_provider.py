@@ -5,7 +5,9 @@ from types import SimpleNamespace
 import pytest
 from google.genai import errors
 
-from src.llm.client import LLMError, LLMRequest, MissingAPIKeyError
+import httpx
+
+from src.llm.client import LLMError, LLMRequest, MissingAPIKeyError, ModelUnavailableError
 from src.llm.gemini_provider import GeminiProvider
 from src.llm.rate_limiter import DailyLimitReached, RateLimiter
 
@@ -64,11 +66,18 @@ def test_retries_rate_limit_and_server_errors_then_succeeds():
     assert len(sleeps) == 2 and sleeps[1] > 0
 
 
-def test_gives_up_after_max_retries():
-    provider, models, _ = make_provider([api_error(500)] * 3, max_retries=2)
-    with pytest.raises(errors.ServerError):
+def test_gives_up_after_max_retries_with_model_unavailable():
+    provider, models, _ = make_provider([api_error(503)] * 3, max_retries=2)
+    with pytest.raises(ModelUnavailableError, match="gemini-test"):
         provider.generate(REQUEST)
     assert len(models.calls) == 3
+
+
+def test_network_errors_are_retried_then_reported_as_unavailable():
+    provider, models, _ = make_provider([httpx.ConnectError("down")] * 2, max_retries=1)
+    with pytest.raises(ModelUnavailableError):
+        provider.generate(REQUEST)
+    assert len(models.calls) == 2
 
 
 def test_client_errors_are_not_retried():

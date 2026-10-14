@@ -1,4 +1,4 @@
-"""Provider-agnostic LLM client: caching, structured output and token-usage tracking.
+"""Provider-agnostic LLM client: caching, structured output, fallback model and usage tracking.
 
 Pipeline code only talks to `LLMClient`. The actual API (Gemini today, possibly Ollama
 later) sits behind the small `LLMProvider` interface.
@@ -7,8 +7,8 @@ later) sits behind the small `LLMProvider` interface.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Literal, Protocol, TypeVar
+from dataclasses import dataclass, field, replace
+from typing import Callable, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -26,6 +26,10 @@ class LLMError(RuntimeError):
 
 class MissingAPIKeyError(LLMError):
     """No API key is configured for the selected provider."""
+
+
+class ModelUnavailableError(LLMError):
+    """The model stayed overloaded or unreachable after all retries."""
 
 
 class StructuredOutputError(LLMError):
@@ -64,7 +68,11 @@ class LLMProvider(Protocol):
     name: str
 
     def generate(self, request: LLMRequest) -> LLMResponse:
-        """Make one API call (including any retries) and return the reply."""
+        """Make one API call (including any retries) and return the reply.
+
+        Raises:
+            ModelUnavailableError: if the model stays overloaded after all retries.
+        """
         ...
 
 
@@ -77,6 +85,7 @@ class StepUsage:
     prompt_tokens: int = 0
     output_tokens: int = 0
     thinking_tokens: int = 0
+    answers_by_model: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -85,8 +94,9 @@ class UsageTracker:
 
     steps: dict[str, StepUsage] = field(default_factory=dict)
 
-    def record(self, step: str, response: LLMResponse | None, cached: bool) -> None:
+    def record(self, step: str, model: str, response: LLMResponse | None, cached: bool) -> None:
         usage = self.steps.setdefault(step, StepUsage())
+        usage.answers_by_model[model] = usage.answers_by_model.get(model, 0) + 1
         if cached:
             usage.cache_hits += 1
             return
@@ -99,19 +109,25 @@ class UsageTracker:
     def summary(self) -> str:
         """A short human-readable table of usage per step."""
         if not self.steps:
-            return "LLM usage: no calls made."
+            return "LLM usage: no answers received."
         lines = ["LLM usage (approximate):"]
         for name, u in sorted(self.steps.items()):
+            models = ", ".join(f"{m} x{n}" for m, n in sorted(u.answers_by_model.items()))
             lines.append(
                 f"  {name}: {u.calls} API calls, {u.cache_hits} from cache, "
                 f"{u.prompt_tokens:,} input tokens, {u.output_tokens:,} output tokens"
                 + (f", {u.thinking_tokens:,} thinking tokens" if u.thinking_tokens else "")
+                + f" [answered by: {models}]"
             )
         return "\n".join(lines)
 
 
 class LLMClient:
-    """The one entry point the pipeline uses for LLM calls."""
+    """The one entry point the pipeline uses for LLM calls.
+
+    After every call, `last_model` holds the model that actually produced the answer
+    (the main model or the fallback), so callers can store it alongside their outputs.
+    """
 
     def __init__(
         self,
@@ -119,12 +135,15 @@ class LLMClient:
         default_model: str,
         cache: LLMCache | None = None,
         tracker: UsageTracker | None = None,
+        fallback_model: str | None = None,
     ) -> None:
         self.provider = provider
         self.default_model = default_model
+        self.fallback_model = fallback_model
         self.cache = cache
         self.tracker = tracker or UsageTracker()
         self.last_call_cached = False
+        self.last_model: str | None = None
 
     def generate_text(
         self,
@@ -169,8 +188,13 @@ class LLMClient:
 
         return parse(self._call(request, step, validate=parse))
 
-    def _call(self, request: LLMRequest, step: str, validate=None) -> str:
-        key = LLMCache.make_key(
+    def _models_to_try(self, requested: str) -> list[str]:
+        if self.fallback_model and self.fallback_model != requested:
+            return [requested, self.fallback_model]
+        return [requested]
+
+    def _cache_key(self, request: LLMRequest) -> str:
+        return LLMCache.make_key(
             provider=self.provider.name,
             model=request.model,
             system=request.system,
@@ -178,32 +202,54 @@ class LLMClient:
             schema=request.json_schema,
             temperature=request.temperature,
         )
+
+    def _call(
+        self, request: LLMRequest, step: str, validate: Callable[[str], object] | None = None
+    ) -> str:
+        models = self._models_to_try(request.model)
+
+        # Any earlier answer counts, including one the fallback gave, so re-runs repeat
+        # the same result at no cost instead of asking a different model.
         if self.cache is not None:
-            hit = self.cache.get(key)
-            if hit is not None:
-                self.last_call_cached = True
-                self.tracker.record(step, None, cached=True)
-                logger.debug("Cache hit for %s (%s)", step, key[:12])
-                return hit["text"]
+            for model in models:
+                hit = self.cache.get(self._cache_key(replace(request, model=model)))
+                if hit is not None:
+                    self.last_call_cached = True
+                    self.last_model = model
+                    self.tracker.record(step, model, None, cached=True)
+                    return hit["text"]
 
         self.last_call_cached = False
-        response = self.provider.generate(request)
-        self.tracker.record(step, response, cached=False)
-        if validate is not None:
-            validate(response.text)  # raises before anything invalid is cached
-        if self.cache is not None:
-            self.cache.set(
-                key,
-                {
-                    "provider": self.provider.name,
-                    "model": request.model,
-                    "step": step,
-                    "text": response.text,
-                    "prompt_tokens": response.prompt_tokens,
-                    "output_tokens": response.output_tokens,
-                },
-            )
-        return response.text
+        for i, model in enumerate(models):
+            attempt = replace(request, model=model)
+            try:
+                response = self.provider.generate(attempt)
+            except ModelUnavailableError as exc:
+                if i == len(models) - 1:
+                    raise
+                logger.warning("%s; switching to fallback model %s for this call", exc, models[i + 1])
+                continue
+            self.last_model = model
+            if model != request.model:
+                logger.info("Step %s answered by fallback model %s", step, model)
+            self.tracker.record(step, model, response, cached=False)
+            if validate is not None:
+                validate(response.text)  # raises before anything invalid is cached
+            if self.cache is not None:
+                self.cache.set(
+                    self._cache_key(attempt),
+                    {
+                        "provider": self.provider.name,
+                        "model": model,
+                        "requested_model": request.model,
+                        "step": step,
+                        "text": response.text,
+                        "prompt_tokens": response.prompt_tokens,
+                        "output_tokens": response.output_tokens,
+                    },
+                )
+            return response.text
+        raise AssertionError("unreachable")  # the loop always returns or raises
 
 
 def build_client(
@@ -211,7 +257,7 @@ def build_client(
     purpose: Literal["extraction", "qa"] = "extraction",
     tracker: UsageTracker | None = None,
 ) -> LLMClient:
-    """Create an `LLMClient` from settings; `purpose` picks the default model."""
+    """Create an `LLMClient` from settings; `purpose` picks the main and fallback models."""
     from src.llm.rate_limiter import RateLimiter
 
     provider_name = settings.llm_provider.lower()
@@ -228,4 +274,10 @@ def build_client(
         max_retries=settings.gemini_max_retries,
     )
     model = settings.gemini_extraction_model if purpose == "extraction" else settings.gemini_qa_model
-    return LLMClient(provider, model, LLMCache(settings.llm_cache_dir), tracker)
+    return LLMClient(
+        provider,
+        model,
+        LLMCache(settings.llm_cache_dir),
+        tracker,
+        fallback_model=settings.fallback_model(purpose),
+    )

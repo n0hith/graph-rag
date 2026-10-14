@@ -21,7 +21,8 @@ flowchart LR
 ```
 
 All LLM calls go through `src/llm/client.py`, which adds an on-disk cache, client-side
-rate limits (per minute and per day), retries with backoff, and token-usage tracking.
+rate limits (per minute and per day), retries with backoff, a fallback model, and
+token-usage tracking.
 
 ## Setup
 
@@ -65,6 +66,10 @@ separate from consumer subscriptions such as Google AI Pro.
   `data/cache/daily_quota.json`. When the budget is used up, or Gemini itself reports the daily
   quota is exhausted, the command stops with a clear message. Run it again the next day to continue.
 - Every successful LLM response is cached in `data/cache/llm/`, so re-runs don't repeat calls.
+- If the main model is still overloaded after all retries, that one call switches to
+  `GEMINI_EXTRACTION_FALLBACK_MODEL` / `GEMINI_QA_FALLBACK_MODEL` (leave empty to disable).
+  The log, the cache entry and the usage summary all record which model actually answered.
+  Use fixed model IDs, not `*-latest` aliases, so results are repeatable.
 
 ## Commands
 

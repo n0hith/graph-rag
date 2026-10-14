@@ -9,7 +9,7 @@ from google.genai.errors import APIError
 from pydantic import BaseModel, Field
 
 from src.config import get_settings, setup_logging
-from src.llm.client import LLMError, build_client
+from src.llm.client import LLMClient, LLMError, build_client
 from src.llm.rate_limiter import DailyLimitReached
 
 app = typer.Typer(help="Graph RAG over Indian company annual reports.", no_args_is_help=True)
@@ -98,24 +98,27 @@ def check_llm() -> None:
         typer.secho(str(exc), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    typer.echo(f"Provider: {settings.llm_provider}, model: {client.default_model}")
+    typer.echo(
+        f"Provider: {settings.llm_provider}, model: {client.default_model}, "
+        f"fallback: {client.fallback_model or 'none'}"
+    )
     try:
         start = time.perf_counter()
         text = client.generate_text(
             "In one sentence, what is a knowledge graph?", step="check.text"
         )
-        _report("1. Plain text call", start, client.last_call_cached)
+        _report("1. Plain text call", start, client)
         typer.echo(f"   -> {text.strip()}")
 
         prompt = "Give basic facts about Tata Consultancy Services."
         start = time.perf_counter()
         first = client.generate_structured(prompt, _CompanyCheck, step="check.structured")
-        _report("2. Structured call", start, client.last_call_cached)
+        _report("2. Structured call", start, client)
         typer.echo(f"   -> {first.model_dump()}")
 
         start = time.perf_counter()
         second = client.generate_structured(prompt, _CompanyCheck, step="check.structured")
-        _report("3. Same structured call again", start, client.last_call_cached)
+        _report("3. Same structured call again", start, client)
     except DailyLimitReached as exc:
         typer.secho(str(exc), fg=typer.colors.YELLOW)
         raise typer.Exit(code=2)
@@ -131,9 +134,9 @@ def check_llm() -> None:
     typer.echo(client.tracker.summary())
 
 
-def _report(label: str, start: float, cached: bool) -> None:
-    source = "from cache" if cached else "from API"
-    typer.echo(f"{label}: {time.perf_counter() - start:.2f}s ({source})")
+def _report(label: str, start: float, client: LLMClient) -> None:
+    source = "from cache" if client.last_call_cached else "from API"
+    typer.echo(f"{label}: {time.perf_counter() - start:.2f}s ({source}, model {client.last_model})")
 
 
 @app.command("check-neo4j")

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     gemini_extraction_model: str = "gemini-3.5-flash-lite"
     gemini_qa_model: str = "gemini-3.8-flash"
+    # Used for a call only when the main model stays overloaded after all retries. Empty = no fallback.
+    gemini_extraction_fallback_model: str | None = None
+    gemini_qa_fallback_model: str | None = None
     gemini_rpm: int = Field(default=10, ge=0, description="Requests per minute per model; 0 = no limit")
     gemini_rpd: int = Field(default=250, ge=0, description="Requests per day per model; 0 = no limit")
     gemini_max_retries: int = Field(default=5, ge=0)
@@ -46,6 +49,11 @@ class Settings(BaseSettings):
             return None
         value = self.gemini_api_key.get_secret_value().strip()
         return value or None
+
+    def fallback_model(self, purpose: str) -> str | None:
+        """The configured fallback for "extraction" or "qa", or None if blank."""
+        value = self.gemini_extraction_fallback_model if purpose == "extraction" else self.gemini_qa_fallback_model
+        return (value or "").strip() or None
 
     @property
     def cache_dir(self) -> Path:
