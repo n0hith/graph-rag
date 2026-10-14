@@ -1,0 +1,9 @@
+[project]
+name = "graph-rag-filings"
+version = "0.1.0"
+description = "Graph RAG over Indian company annual reports"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Generated data (folders are kept via .gitkeep)
+data/raw_pdfs/*
+data/sections/*
+data/extracted/*
+data/resolved/*
+data/cache/*
+!data/**/.gitkeep
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

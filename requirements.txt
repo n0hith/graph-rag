@@ -1,0 +1,8 @@
+# Pinned versions. Packages for later phases are added when those phases are built.
+google-genai==2.30.1
+pydantic==2.14.1
+pydantic-settings==2.16.0
+typer==0.27.3
+neo4j==6.4.0
+tzdata==2026.5
+pytest==9.1.1
