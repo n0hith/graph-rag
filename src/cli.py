@@ -9,6 +9,7 @@ from google.genai.errors import APIError
 from pydantic import BaseModel, Field
 
 from src.config import get_settings, setup_logging
+from src.ingest.companies import Company, load_companies, select_companies
 from src.llm.client import LLMClient, LLMError, build_client
 from src.llm.rate_limiter import DailyLimitReached
 
@@ -29,16 +30,71 @@ def _not_built(phase: int) -> None:
 # ---------------------------------------------------------------- pipeline steps
 
 
+def _companies(symbols: list[str] | None) -> list[Company]:
+    settings = get_settings()
+    try:
+        return select_companies(load_companies(settings.companies_csv), symbols)
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
 @app.command()
-def download() -> None:
+def download(
+    company: list[str] = typer.Option(None, "--company", "-c", help="NSE symbol; repeat for several. Default: all."),
+    force: bool = typer.Option(False, help="Download again even if the file is already there."),
+) -> None:
     """Download annual report PDFs listed in data/companies.csv."""
-    _not_built(1)
+    from src.ingest.download import Status, download_all
+
+    settings = get_settings()
+    results = download_all(_companies(company), settings.raw_pdf_dir, settings.checksum_file, force=force)
+    colors = {Status.DOWNLOADED: typer.colors.GREEN, Status.SKIPPED: None}
+    for r in results:
+        size = f"{r.size / 1e6:.1f} MB" if r.size else ""
+        line = f"{r.company.nse_symbol:<11} {r.status.value:<20} {size:>9}  {r.message}"
+        typer.secho(line.rstrip(), fg=colors.get(r.status, typer.colors.RED))
+    bad = [r for r in results if r.status not in colors]
+    if bad:
+        raise typer.Exit(code=1)
 
 
 @app.command()
-def sectionize() -> None:
+def sectionize(
+    company: list[str] = typer.Option(None, "--company", "-c", help="NSE symbol; repeat for several. Default: all."),
+    force: bool = typer.Option(False, help="Redo companies that were already sectionized."),
+) -> None:
     """Find the relevant sections (directors, subsidiaries, auditors, ...) in each PDF."""
-    _not_built(1)
+    from src.ingest.sectionize import SECTION_TYPES, sectionize_company
+
+    settings = get_settings()
+    problems = 0
+    for c in _companies(company):
+        pdf = settings.raw_pdf_dir / c.pdf_name
+        if not pdf.exists():
+            typer.secho(f"{c.nse_symbol}: {pdf.name} not downloaded yet (run `download`)", fg=typer.colors.RED)
+            problems += 1
+            continue
+        r = sectionize_company(c, pdf, settings.sections_dir, force=force)
+        found = len(r.detection.sections)
+        note = " (already done, skipped)" if r.skipped else ""
+        typer.secho(f"\n{c.nse_symbol}: {found}/{len(SECTION_TYPES)} sections, {r.page_count} pages{note}", bold=True)
+        if r.cin.cin == c.cin:
+            typer.echo(f"  CIN {r.cin.cin} found {r.cin.count}x, matches companies.csv")
+        else:
+            typer.secho(f"  CIN mismatch: report has {r.cin.cin} ({r.cin.count}x), companies.csv has {c.cin or 'nothing'}",
+                        fg=typer.colors.YELLOW)
+            problems += 1
+        for kind in SECTION_TYPES:
+            s = r.detection.sections.get(kind)
+            if s:
+                typer.echo(f"  found    {kind:<21} pages {s.page_start}-{s.page_end}")
+            else:
+                typer.secho(f"  MISSING  {kind:<21} {r.detection.missing.get(kind, '')}", fg=typer.colors.RED)
+                problems += 1
+    typer.echo(f"\nSections saved under {settings.sections_dir}")
+    if problems:
+        raise typer.Exit(code=1)
 
 
 @app.command()

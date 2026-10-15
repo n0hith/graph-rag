@@ -1,0 +1,32 @@
+{
+  "INFY": {
+    "bytes": 11441269,
+    "recorded_at": "2026-10-15T17:19:47Z",
+    "sha256": "b0a9bb9e802aff5f09733b8c78c88e9878732ac46e0fb29754c6da87ad47326a",
+    "url": "https://nsearchives.nseindia.com/annual_reports/AR_24073_INFY_2023_2024_03062024153021.pdf"
+  },
+  "TATACONSUM": {
+    "bytes": 16559758,
+    "recorded_at": "2026-10-15T17:19:44Z",
+    "sha256": "092928368f1e3d4f7b7d7338d4dd5f78252fd6fb4de08f2cc70b3c05b5900ac6",
+    "url": "https://www.bseindia.com/xml-data/corpfiling/AttachHis/166b0feb-ff2c-484f-a942-74fbf8053121.pdf"
+  },
+  "TATAMOTORS": {
+    "bytes": 20573259,
+    "recorded_at": "2026-10-15T17:19:42Z",
+    "sha256": "7c7610ebbea4ff3dabcb1c63d673b8b2e3c6c0f45d17daf1a88908fbf8f04a25",
+    "url": "https://nsearchives.nseindia.com/annual_reports/AR_24058_TATAMOTORS_2023_2024_310520242633.pdf"
+  },
+  "TATASTEEL": {
+    "bytes": 25690663,
+    "recorded_at": "2026-10-15T17:19:43Z",
+    "sha256": "128706186e05b5fe07e6e9184252e423340634e22fbc2edb5e9423db4cffd232",
+    "url": "https://www.tatasteel.com/media/21241/tata-steel-limited-ir-2024.pdf"
+  },
+  "TCS": {
+    "bytes": 10182737,
+    "recorded_at": "2026-10-15T17:19:39Z",
+    "sha256": "992b3cb2a47a9ce84b127d23d7dc1fb22967d7592d1e8af2c2120b6764da8651",
+    "url": "https://www.bseindia.com/xml-data/corpfiling/AttachHis/d57e49b6-fd89-4fa8-b591-4f590100db1e.pdf"
+  }
+}

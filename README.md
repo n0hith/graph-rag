@@ -6,7 +6,7 @@ facts (companies, directors, auditors, subsidiaries) out of FY2023-24 annual rep
 Neo4j knowledge graph. It answers questions with graph queries that show their path and cite
 source pages, and it measures where that beats a plain RAG baseline and where it doesn't.
 
-> Status: **Phase 0 (setup)** is done. See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan.
+> Status: **Phase 1 (download and sectionize)** is done. See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan.
 
 ## Architecture
 
@@ -81,7 +81,8 @@ python -m src.cli --help
 |---|---|---|
 | `check-llm` | 0 | Plain text call, structured call, then the same call again to confirm the cache |
 | `check-neo4j` | 0 | Connects to Neo4j and runs a test query |
-| `download`, `sectionize` | 1 | Fetch PDFs and find relevant sections |
+| `download` | 1 | Fetch the PDFs in `companies.csv` and verify them against `data/pdf_checksums.json` |
+| `sectionize` | 1 | Find the governance report, AOC-1, auditor's report, secretarial audit and related-party note |
 | `baseline-index`, `ask --mode baseline` | 2 | Plain RAG baseline |
 | `extract` | 3 | Fact extraction |
 | `resolve` | 4 | Entity resolution |
@@ -95,10 +96,15 @@ python -m src.cli --help
 graphrag/
 ├── data/
 │   ├── companies.csv        # pilot companies; report URLs filled in by hand
+│   ├── pdf_checksums.json   # sha256 of each downloaded report (committed)
 │   ├── raw_pdfs/ sections/ extracted/ resolved/ overrides/ cache/
 ├── src/
 │   ├── config.py            # settings from .env
 │   ├── cli.py               # typer CLI
+│   ├── ingest/
+│   │   ├── companies.py     # reads companies.csv
+│   │   ├── download.py      # polite downloads + sha256 records
+│   │   └── sectionize.py    # heading-based section detection
 │   └── llm/
 │       ├── client.py        # provider-agnostic client, cache use, usage tracking
 │       ├── gemini_provider.py
@@ -111,6 +117,27 @@ graphrag/
 └── PROJECT_SPEC.md
 ```
 
+## Phase 1: download and sectionize
+
+```powershell
+python -m src.cli download              # all companies; already-downloaded files are skipped
+python -m src.cli sectionize            # writes data/sections/<SYMBOL>/<section>.json + summary.json
+python -m src.cli sectionize -c INFY --force   # redo one company
+```
+
+- Downloads send a browser User-Agent (BSE/NSE return 403 otherwise), retry 429/5xx with
+  backoff, pause between requests to the same host, and record each file's sha256 in
+  `data/pdf_checksums.json` (committed). A later download that doesn't match is kept as
+  `<SYMBOL>.pdf.new` and reported, never silently swapped in.
+- `sectionize` reads heading lines (bold or larger than body text) with PyMuPDF and finds
+  five sections per report: `corporate_governance`, `subsidiaries_aoc1`, `auditor_report`
+  (standalone), `secretarial_audit` (the company's own Form MR-3) and `related_party`
+  (the standalone note). Each JSON holds the PDF page range, the text of every page and the
+  tables pdfplumber detected. Page numbers are PDF page numbers, not printed ones.
+- It also checks the company's CIN: the most frequent CIN in the PDF must equal the one in
+  `companies.csv`.
+- Re-running skips a company whose `summary.json` came from the same PDF and detector version.
+
 ## Evaluation results
 
 Not yet available (Phase 7).
@@ -118,5 +145,11 @@ Not yet available (Phase 7).
 ## Known limitations
 
 - Only the Gemini provider is implemented. Ollama is deferred.
+- Section rules were tuned on the 5 pilot reports. Other companies' layouts may need new
+  patterns; `sectionize` reports anything it can't find instead of guessing.
+- Table extraction is best-effort: pdfplumber only finds ruled tables, and pages printed
+  sideways (most AOC-1 tables) are skipped for tables. Their full text is still saved.
+- Only the company's own secretarial audit report is kept, not those of its material
+  subsidiaries that some reports also include.
 - Auditors of subsidiaries are usually not named in the parent company's report, so questions
   about them are marked unanswerable from this data.

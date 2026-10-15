@@ -72,6 +72,19 @@ class Settings(BaseSettings):
     def companies_csv(self) -> Path:
         return self.data_dir / "companies.csv"
 
+    @property
+    def raw_pdf_dir(self) -> Path:
+        return self.data_dir / "raw_pdfs"
+
+    @property
+    def checksum_file(self) -> Path:
+        """sha256 of every downloaded report; committed so downloads can be verified anywhere."""
+        return self.data_dir / "pdf_checksums.json"
+
+    @property
+    def sections_dir(self) -> Path:
+        return self.data_dir / "sections"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
