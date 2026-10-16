@@ -92,6 +92,8 @@ def sectionize(
             else:
                 typer.secho(f"  MISSING  {kind:<21} {r.detection.missing.get(kind, '')}", fg=typer.colors.RED)
                 problems += 1
+        for sub in r.detection.subsidiary_secretarial:
+            typer.echo(f"  found    secretarial_audit (subsidiary: {sub.subsidiary_name}) pages {sub.page_start}-{sub.page_end}")
     typer.echo(f"\nSections saved under {settings.sections_dir}")
     if problems:
         raise typer.Exit(code=1)

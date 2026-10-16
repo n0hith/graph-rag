@@ -63,6 +63,11 @@ AOC1_START = re.compile(
 AUDIT_STANDALONE_START = re.compile(r"report\s+on\s+the\s+audit\s+of\s+the\s+standalone\s+financial\s+statements", _I)
 AUDIT_CONSOLIDATED_START = re.compile(r"report\s+on\s+the\s+audit\s+of\s+the\s+consolidated\s+financial\s+statements", _I)
 SECRETARIAL_START = re.compile(r"secretarial\s+audit\s+report|form\s*(no\.?)?\s*mr\s*[-–]?\s*3\b", _I)
+# MR-3 reports are addressed "To, The Members, <Company Name> Limited"; this names who a
+# given report is about, so a subsidiary's report can be tagged with the subsidiary's name.
+REPORT_SUBJECT = re.compile(
+    r"to,?\s*the\s+members\s*(?:of)?\s*,?\s*([A-Z][A-Za-z0-9&.,()'\-\s]{2,100}?(?:limited|ltd\.?))", _I
+)
 # A numbered note heading: "20) Related party transactions", "2.24 Related party transactions",
 # "42. Related-party transactions", "37. A) RELATED PARTY DISCLOSURE".
 RPT_HEADING = re.compile(
@@ -280,9 +285,22 @@ class Section:
 
 
 @dataclass
+class SubsidiarySecretarialReport:
+    """A material subsidiary's own secretarial audit report (Form MR-3), found alongside the
+    company's own report but kept separate and tagged, since it concerns a different entity."""
+
+    subsidiary_name: str
+    page_start: int
+    page_end: int
+    start_heading: str
+    end_reason: str
+
+
+@dataclass
 class Detection:
     sections: dict[str, Section] = field(default_factory=dict)
     missing: dict[str, str] = field(default_factory=dict)
+    subsidiary_secretarial: list[SubsidiarySecretarialReport] = field(default_factory=list)
 
 
 def _candidates(pages: list[Page], pattern: re.Pattern, lo: int = 1, hi: int | None = None) -> list[tuple[Page, Heading]]:
@@ -397,11 +415,22 @@ def detect_sections(pages: list[Page], company_name: str = "") -> Detection:
         det.missing["auditor_report"] = "no 'Report on the Audit of the Standalone Financial Statements' heading found"
 
     # Secretarial audit report (Form MR-3) of the company itself. Reports of material
-    # subsidiaries often follow it; the company's own is the first one that names the company.
-    cands = [c for c in _candidates(pages, SECRETARIAL_START) if _is_mr3_page(c[0].text)]
-    own = [c for c in cands if company_name and _norm(company_name) in _norm(c[0].text)]
-    if own or cands:
-        found("secretarial_audit", (own or cands)[0])
+    # subsidiaries often follow it; the company's own is the one that names the company.
+    # Every other MR-3 block found is kept too, tagged with whichever subsidiary it's about.
+    mr3_cands = [c for c in _candidates(pages, SECRETARIAL_START) if _is_mr3_page(c[0].text)]
+    if mr3_cands:
+        blocks = _group_secretarial_blocks(pages, mr3_cands)
+        own_blocks = [b for b in blocks if company_name and _norm(company_name) in _norm(b[0].text)]
+        own = own_blocks[0] if own_blocks else blocks[0]
+        page, heading, end, reason = own
+        add("secretarial_audit", page, heading, end, reason)
+        for page, heading, end, reason in blocks:
+            if (page, heading, end, reason) == own:
+                continue
+            subject = _report_subject(page.text) or "subsidiary (name not found)"
+            det.subsidiary_secretarial.append(
+                SubsidiarySecretarialReport(subject, page.number, end, heading.text[:200], reason)
+            )
     else:
         det.missing["secretarial_audit"] = "no 'Secretarial Audit Report' / 'Form MR-3' page found"
 
@@ -435,6 +464,29 @@ def _aoc1_table_words(text: str) -> int:
 def _is_mr3_page(text: str) -> bool:
     lowered = " ".join(text.lower().split())
     return bool(re.search(r"mr\s*[-–]?\s*3|section\s*204\s*\(1\)|secretarial\s+audit\s+report\s+for\s+the\s+financial\s+year", lowered))
+
+
+def _report_subject(text: str) -> str | None:
+    """Who an MR-3 report is addressed about, from its "To, The Members, <Name>" line."""
+    match = REPORT_SUBJECT.search(text)
+    return " ".join(match.group(1).split()) if match else None
+
+
+def _group_secretarial_blocks(
+    pages: list[Page], cands: list[tuple[Page, Heading]]
+) -> list[tuple[Page, Heading, int, str]]:
+    """One MR-3 report can span several pages; group candidate headings into non-overlapping
+    (page, heading, end, end_reason) blocks, since the company's own report and any
+    subsidiaries' reports each start a new block."""
+    blocks = []
+    covered_until = 0
+    for page, heading in cands:
+        if page.number <= covered_until:
+            continue
+        end, reason = _find_end(pages, page, heading, END_RULES["secretarial_audit"], MAX_PAGES["secretarial_audit"])
+        blocks.append((page, heading, end, reason))
+        covered_until = end
+    return blocks
 
 
 def _note_key(number: str) -> tuple[int, ...]:
@@ -482,22 +534,39 @@ def _rpt_end(pages: list[Page], start: int, note: tuple[int, ...], hi: int) -> t
 # ---------------------------------------------------------------- tables and output
 
 
+def _clean_tables(raw_tables) -> list[list[list[str]]]:
+    """Normalize whitespace in every cell and drop tables too small to be real (noise)."""
+    cleaned = []
+    for table in raw_tables:
+        rows = [[" ".join((cell or "").split()) for cell in row] for row in table]
+        rows = [r for r in rows if any(r)]
+        if len(rows) >= 2 and max(len(r) for r in rows) >= 2:
+            cleaned.append(rows)
+    return cleaned
+
+
 def extract_tables(pdf_path: Path, page_numbers: list[int], rotated: set[int]) -> dict[int, list[list[list[str]]]]:
-    """Tables pdfplumber finds on the given pages (rows of cell strings). Pages with sideways
-    text are skipped because pdfplumber returns their text reversed. Empty tables are dropped."""
+    """Tables found on the given pages (rows of cell strings).
+
+    PyMuPDF's table finder is tried first on every page: unlike pdfplumber, it reads a
+    sideways page's text in the right order, so rotated pages (most AOC-1 tables) no longer
+    have to be skipped. pdfplumber is tried as a second pass, upright pages only, in case its
+    ruling-line detection catches a borderless-looking table PyMuPDF's clustering missed.
+    """
     tables: dict[int, list[list[list[str]]]] = {}
-    with pdfplumber.open(pdf_path) as pdf:
+    with pymupdf.open(pdf_path) as doc:
         for number in page_numbers:
-            if number in rotated:
-                continue
-            found = []
-            for table in pdf.pages[number - 1].extract_tables():
-                rows = [[" ".join((cell or "").split()) for cell in row] for row in table]
-                rows = [r for r in rows if any(r)]
-                if len(rows) >= 2 and max(len(r) for r in rows) >= 2:
-                    found.append(rows)
+            found = _clean_tables(t.extract() for t in doc[number - 1].find_tables().tables)
             if found:
                 tables[number] = found
+
+    still_missing = [n for n in page_numbers if n not in tables and n not in rotated]
+    if still_missing:
+        with pdfplumber.open(pdf_path) as pdf:
+            for number in still_missing:
+                found = _clean_tables(pdf.pages[number - 1].extract_tables())
+                if found:
+                    tables[number] = found
     return tables
 
 
@@ -527,7 +596,10 @@ def sectionize_company(company: Company, pdf_path: Path, out_dir: Path, force: b
     pages = read_pages(pdf_path)
     cin = find_cin([p.text for p in pages])
     detection = detect_sections(pages, company.name)
-    numbers = sorted({n for s in detection.sections.values() for n in range(s.page_start, s.page_end + 1)})
+    numbers = sorted(
+        {n for s in detection.sections.values() for n in range(s.page_start, s.page_end + 1)}
+        | {n for s in detection.subsidiary_secretarial for n in range(s.page_start, s.page_end + 1)}
+    )
     tables = extract_tables(pdf_path, numbers, {p.number for p in pages if p.rotated})
 
     company_dir.mkdir(parents=True, exist_ok=True)
@@ -556,6 +628,31 @@ def sectionize_company(company: Company, pdf_path: Path, out_dir: Path, force: b
         }
         _write_json(company_dir / f"{kind}.json", payload)
 
+    for i, sub in enumerate(detection.subsidiary_secretarial, start=1):
+        payload = {
+            "company": company.name,
+            "nse_symbol": company.nse_symbol,
+            "section_type": "secretarial_audit_subsidiary",
+            "is_subsidiary_report": True,
+            "parent_company": company.name,
+            "subsidiary_name": sub.subsidiary_name,
+            "source_pdf": pdf_path.name,
+            "pdf_sha256": digest,
+            "page_start": sub.page_start,
+            "page_end": sub.page_end,
+            "detection": {"start_heading": sub.start_heading, "end_reason": sub.end_reason},
+            "pages": [
+                {
+                    "page": n,
+                    "text": pages[n - 1].text,
+                    "tables": tables.get(n, []),
+                    "rotated": pages[n - 1].rotated,
+                }
+                for n in range(sub.page_start, sub.page_end + 1)
+            ],
+        }
+        _write_json(company_dir / f"secretarial_audit_subsidiary_{i}.json", payload)
+
     summary = {
         "company": company.name,
         "nse_symbol": company.nse_symbol,
@@ -576,9 +673,17 @@ def sectionize_company(company: Company, pdf_path: Path, out_dir: Path, force: b
             )
             for kind in SECTION_TYPES
         },
+        "subsidiary_secretarial_audit_reports": [
+            {"subsidiary_name": s.subsidiary_name, "page_start": s.page_start, "page_end": s.page_end,
+             "start_heading": s.start_heading, "end_reason": s.end_reason}
+            for s in detection.subsidiary_secretarial
+        ],
     }
     _write_json(summary_path, summary)
-    logger.info("%s: %d/%d sections found", company.nse_symbol, len(detection.sections), len(SECTION_TYPES))
+    logger.info(
+        "%s: %d/%d sections found, %d subsidiary secretarial report(s)",
+        company.nse_symbol, len(detection.sections), len(SECTION_TYPES), len(detection.subsidiary_secretarial),
+    )
     return SectionizeResult(company, False, len(pages), cin, detection)
 
 
@@ -589,6 +694,10 @@ def _result_from_summary(company: Company, summary: dict) -> SectionizeResult:
             det.sections[kind] = Section(kind, info["page_start"], info["page_end"], info["start_heading"], info["end_reason"])
         else:
             det.missing[kind] = info.get("reason", "")
+    for s in summary.get("subsidiary_secretarial_audit_reports", []):
+        det.subsidiary_secretarial.append(
+            SubsidiarySecretarialReport(s["subsidiary_name"], s["page_start"], s["page_end"], s["start_heading"], s["end_reason"])
+        )
     cin = CinResult(summary.get("cin_found"), summary.get("cin_count", 0), summary.get("cin_candidates", {}))
     return SectionizeResult(company, True, summary["page_count"], cin, det)
 

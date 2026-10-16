@@ -144,8 +144,10 @@ python -m src.cli sectionize -c INFY --force   # redo one company
 - `sectionize` reads heading lines (bold or larger than body text) with PyMuPDF and finds
   five sections per report: `corporate_governance`, `subsidiaries_aoc1`, `auditor_report`
   (standalone), `secretarial_audit` (the company's own Form MR-3) and `related_party`
-  (the standalone note). Each JSON holds the PDF page range, the text of every page and the
-  tables pdfplumber detected. Page numbers are PDF page numbers, not printed ones.
+  (the standalone note), plus any subsidiaries' own secretarial audit reports found alongside
+  the company's own (see "Known limitations"). Each JSON holds the PDF page range, the text
+  of every page and the tables found (PyMuPDF first, pdfplumber as a second pass). Page
+  numbers are PDF page numbers, not printed ones.
 - It also checks the company's CIN: the most frequent CIN in the PDF must equal the one in
   `companies.csv`.
 - Re-running skips a company whose `summary.json` came from the same PDF and detector version.
@@ -159,10 +161,16 @@ Not yet available (Phase 7).
 - Only the Gemini provider is implemented. Ollama is deferred.
 - Section rules were tuned on the 5 pilot reports. Other companies' layouts may need new
   patterns; `sectionize` reports anything it can't find instead of guessing.
-- Table extraction is best-effort: pdfplumber only finds ruled tables, and pages printed
-  sideways (most AOC-1 tables) are skipped for tables. Their full text is still saved.
-- Only the company's own secretarial audit report is kept, not those of its material
-  subsidiaries that some reports also include.
+- Table extraction is best-effort: PyMuPDF's table finder is tried first on every page (it
+  reads rotated pages correctly, unlike pdfplumber), with pdfplumber as a second pass on
+  upright pages. Both only find *ruled* tables; a wide, rotated, borderless table like Tata
+  Steel's or Tata Motors' AOC-1 subsidiary list still returns nothing. Full page text is
+  always saved regardless, so the LLM can still read these tables as text in Phase 3; sending
+  page images to Gemini is the next option if that's not good enough.
+- The company's own secretarial audit report is kept as `secretarial_audit.json`; any material
+  subsidiaries' own secretarial audit reports in the same PDF (Tata Motors has 2, Tata Steel
+  has 1) are kept too, as separate `secretarial_audit_subsidiary_N.json` files tagged with
+  the subsidiary's name, so they're never confused with the parent's own report.
 - Auditors of subsidiaries are usually not named in the parent company's report, so questions
   about them are marked unanswerable from this data.
 
