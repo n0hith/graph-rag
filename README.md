@@ -203,3 +203,9 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
 - Strengthen the baseline so the eventual graph-vs-baseline comparison is fair: retrieve more
   chunks, add keyword (BM25-style) search alongside the semantic search and combine the two
   (hybrid search), and filter to a company's own chunks first when the question names one.
+- `GEMINI_QA_MODEL` is currently `gemini-3.5-flash-lite` (free tier) because `gemini-3.8-flash`'s
+  free daily quota (~20 requests) is too small for evaluation-scale question answering. Before
+  Phase 7, we may enable billing on the API key's Google Cloud project to use a stronger QA
+  model instead. If so: replace `GEMINI_API_KEY` with a fresh key first (the current one was
+  shared in chat and is only safe to keep while on the free tier), and set a spend cap on that
+  project before switching models.
