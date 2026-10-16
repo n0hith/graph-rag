@@ -10,3 +10,6 @@ pytest==9.1.1
 requests==2.34.2
 pymupdf==1.28.2
 pdfplumber==0.11.10
+# Phase 2: plain RAG baseline
+chromadb==1.5.9
+sentence-transformers==6.1.0

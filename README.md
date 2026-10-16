@@ -6,7 +6,7 @@ facts (companies, directors, auditors, subsidiaries) out of FY2023-24 annual rep
 Neo4j knowledge graph. It answers questions with graph queries that show their path and cite
 source pages, and it measures where that beats a plain RAG baseline and where it doesn't.
 
-> Status: **Phase 1 (download and sectionize)** is done. See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan.
+> Status: **Phase 2 (plain RAG baseline)** is done. See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan.
 
 ## Architecture
 
@@ -105,11 +105,17 @@ graphrag/
 │   │   ├── companies.py     # reads companies.csv
 │   │   ├── download.py      # polite downloads + sha256 records
 │   │   └── sectionize.py    # heading-based section detection
-│   └── llm/
-│       ├── client.py        # provider-agnostic client, cache use, usage tracking
-│       ├── gemini_provider.py
-│       ├── rate_limiter.py  # per-minute / per-day limits, backoff
-│       └── cache.py
+│   ├── llm/
+│   │   ├── client.py        # provider-agnostic client, cache use, usage tracking
+│   │   ├── gemini_provider.py
+│   │   ├── rate_limiter.py  # per-minute / per-day limits, backoff
+│   │   └── cache.py
+│   └── qa/
+│       ├── tokenizer.py     # token offsets for chunking (same tokenizer as the embedding model)
+│       ├── chunking.py      # full-text -> overlapping chunks, with page ranges
+│       ├── embeddings.py    # local sentence-transformers wrapper
+│       ├── baseline_index.py # Chroma collection: build, skip-if-unchanged, query
+│       └── baseline_rag.py  # retrieve top-k chunks, answer with citations
 ├── tests/
 ├── docker-compose.yml
 ├── requirements.txt
@@ -153,3 +159,25 @@ Not yet available (Phase 7).
   subsidiaries that some reports also include.
 - Auditors of subsidiaries are usually not named in the parent company's report, so questions
   about them are marked unanswerable from this data.
+
+## Phase 2: plain RAG baseline
+
+```powershell
+python -m src.cli baseline-index                       # chunk + embed + index every company's full PDF text
+python -m src.cli baseline-index -c TCS --force         # redo one company
+python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
+```
+
+- Each company's PDF (every page, not just the sections from Phase 1) is read with the same
+  PyMuPDF reader `sectionize` uses, then split into overlapping chunks of about 500 tokens
+  (60-token overlap) using the embedding model's own tokenizer, so chunk sizes match what it
+  actually sees. Every chunk keeps the company name and the page range it came from.
+- Chunks are embedded locally with `BAAI/bge-small-en-v1.5` (sentence-transformers, no API
+  calls, no cost) and stored in a persistent ChromaDB collection under `data/vector_store/`.
+  Re-running `baseline-index` skips a company whose PDF (by sha256) and embedding model
+  haven't changed.
+- `ask --mode baseline` embeds the question, retrieves the top-k chunks (`GEMINI_RPM`/`GEMINI_RPD`
+  permitting), and asks `GEMINI_QA_MODEL` to answer using only those excerpts, citing
+  `[Company, p.N]` for every claim. The CLI also prints the distinct (company, page) sources used.
+- This baseline is what the graph pipeline (Phase 6+) has to beat on multi-hop questions; it's
+  built to be a fair, reasonably strong baseline, not a strawman.

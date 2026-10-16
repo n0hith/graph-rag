@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: SecretStr = SecretStr("")
 
+    # Baseline RAG (Phase 2)
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    baseline_chunk_tokens: int = Field(default=500, gt=0, description="Target chunk size in embedding-model tokens")
+    baseline_chunk_overlap_tokens: int = Field(default=60, ge=0, description="Token overlap between consecutive chunks")
+    baseline_top_k: int = Field(default=6, gt=0, description="Chunks retrieved per question")
+
     # Paths and logging
     data_dir: Path = PROJECT_ROOT / "data"
     log_level: str = "INFO"
@@ -84,6 +90,11 @@ class Settings(BaseSettings):
     @property
     def sections_dir(self) -> Path:
         return self.data_dir / "sections"
+
+    @property
+    def vector_store_dir(self) -> Path:
+        """ChromaDB's persistent storage for the baseline RAG index."""
+        return self.data_dir / "vector_store"
 
 
 @lru_cache(maxsize=1)

@@ -116,15 +116,71 @@ def load() -> None:
 
 
 @app.command("baseline-index")
-def baseline_index() -> None:
+def baseline_index(
+    company: list[str] = typer.Option(None, "--company", "-c", help="NSE symbol; repeat for several. Default: all."),
+    force: bool = typer.Option(False, help="Re-chunk and re-embed companies that are already indexed."),
+) -> None:
     """Chunk, embed and index report text for the plain RAG baseline."""
-    _not_built(2)
+    from src.qa.baseline_index import build_index
+    from src.qa.embeddings import SentenceTransformerEmbedder
+    from src.qa.tokenizer import HFTokenizer
+
+    settings = get_settings()
+    typer.echo(f"Loading embedding model {settings.embedding_model} (first run downloads it)...")
+    embedder = SentenceTransformerEmbedder(settings.embedding_model)
+    tokenizer = HFTokenizer(settings.embedding_model)
+    stats = build_index(
+        _companies(company),
+        settings.raw_pdf_dir,
+        settings.vector_store_dir,
+        embedder,
+        tokenizer,
+        settings.baseline_chunk_tokens,
+        settings.baseline_chunk_overlap_tokens,
+        settings.embedding_model,
+        force=force,
+    )
+    total = 0
+    for s in stats:
+        note = " (already indexed, skipped)" if s.skipped else ""
+        typer.echo(f"{s.nse_symbol:<11} {s.chunk_count} chunks{note}")
+        total += s.chunk_count
+    typer.secho(f"\n{total} chunks stored in {settings.vector_store_dir}", bold=True)
 
 
 @app.command()
 def ask(question: str, mode: str = typer.Option("graph", help="graph, baseline or both")) -> None:
     """Answer a question."""
-    _not_built(2 if mode == "baseline" else 6)
+    if mode not in ("baseline", "graph", "both"):
+        typer.secho(f"Unknown mode {mode!r}: use graph, baseline or both.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    if mode in ("graph", "both"):
+        _not_built(6)
+
+    from src.qa.baseline_index import BaselineIndex
+    from src.qa.baseline_rag import answer_baseline
+    from src.qa.embeddings import SentenceTransformerEmbedder
+
+    settings = get_settings()
+    index = BaselineIndex(settings.vector_store_dir)
+    if index.count() == 0:
+        typer.secho("The baseline index is empty. Run `baseline-index` first.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    embedder = SentenceTransformerEmbedder(settings.embedding_model)
+    client = build_client(settings, purpose="qa")
+    try:
+        result = answer_baseline(question, index, embedder, client, settings.baseline_top_k)
+    except (DailyLimitReached, APIError, LLMError) as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    typer.secho("\nAnswer:", bold=True)
+    typer.echo(result.answer)
+    if result.sources:
+        typer.secho("\nSources:", bold=True)
+        for s in result.sources:
+            typer.echo(f"  {s.company} ({s.nse_symbol}), {s.page_label}")
+    typer.echo(f"\n{client.tracker.summary()}")
 
 
 @app.command("eval")

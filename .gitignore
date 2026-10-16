@@ -13,6 +13,7 @@ data/sections/*
 data/extracted/*
 data/resolved/*
 data/cache/*
+data/vector_store/*
 !data/**/.gitkeep
 
 # Editors / OS
