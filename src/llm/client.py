@@ -14,6 +14,7 @@ from pydantic import BaseModel, ValidationError
 
 from src.config import Settings
 from src.llm.cache import LLMCache
+from src.llm.rate_limiter import DailyLimitReached
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +225,7 @@ class LLMClient:
             attempt = replace(request, model=model)
             try:
                 response = self.provider.generate(attempt)
-            except ModelUnavailableError as exc:
+            except (ModelUnavailableError, DailyLimitReached) as exc:
                 if i == len(models) - 1:
                     raise
                 logger.warning("%s; switching to fallback model %s for this call", exc, models[i + 1])
@@ -267,7 +268,7 @@ def build_client(
         )
     from src.llm.gemini_provider import GeminiProvider
 
-    limiter = RateLimiter(settings.gemini_rpm, settings.gemini_rpd, settings.quota_state_file)
+    limiter = RateLimiter(settings.rate_limits(), settings.quota_state_file)
     provider = GeminiProvider(
         api_key=settings.api_key,
         rate_limiter=limiter,

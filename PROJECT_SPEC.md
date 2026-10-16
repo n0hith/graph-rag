@@ -38,8 +38,13 @@ This project:
     - `GEMINI_QA_MODEL`: a stronger model for question → Cypher and answer writing
   - Wrap everything in a provider-agnostic client in `src/llm/client.py` with methods like `generate_text(...)` and `generate_structured(prompt, pydantic_model)`, so the provider can be swapped later. Ollama is deferred (not installed); the interface stays provider-agnostic so it can be added later.
   - Rate limiting and resilience:
-    - Configurable requests-per-minute limit (`GEMINI_RPM` in `.env`), enforced client-side
-    - Configurable requests-per-day limit (`GEMINI_RPD`). When reached, stop cleanly with a clear message; the next run resumes where it stopped
+    - Per-model requests-per-minute and requests-per-day limits (`GEMINI_MODEL_LIMITS` in `.env`,
+      a JSON map of model name -> `{rpm, rpd}`), enforced client-side, since different models
+      have different free-tier quotas. A model not listed has no client-side limit.
+    - When a model's daily quota is used up (our own counter, or Gemini's own "per day" error),
+      that call switches to the fallback model, the same as when a model stays overloaded.
+      Only stop cleanly (with a clear, resumable message) if the fallback is also out of quota
+      or there is no fallback configured.
     - Exponential backoff with jitter on rate-limit (429) and server (5xx) errors, with a max retry count
     - Long jobs must be resumable: if extraction stops halfway, re-running continues from where it stopped
   - Cache every LLM call on disk, keyed by a hash of model + prompt + schema, so re-runs cost nothing
@@ -51,7 +56,7 @@ This project:
 - CLI: typer, with commands `download`, `sectionize`, `extract`, `resolve`, `load`, `baseline-index`, `ask`, `eval`
 - Demo: Streamlit, with a graph view using `streamlit-agraph` or pyvis
 - Tests: pytest
-- Config: `.env` + `src/config.py`; never commit secrets. Provide `.env.example` with: `GEMINI_API_KEY`, `GEMINI_EXTRACTION_MODEL`, `GEMINI_QA_MODEL`, `GEMINI_RPM`, `GEMINI_RPD`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `LLM_PROVIDER` (default `gemini`)
+- Config: `.env` + `src/config.py`; never commit secrets. Provide `.env.example` with: `GEMINI_API_KEY`, `GEMINI_EXTRACTION_MODEL`, `GEMINI_QA_MODEL`, `GEMINI_MODEL_LIMITS`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `LLM_PROVIDER` (default `gemini`)
 
 ## Project structure
 ```

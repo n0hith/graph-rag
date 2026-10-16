@@ -6,10 +6,17 @@ import logging
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+class ModelRateLimit(BaseModel):
+    """A requests-per-minute and requests-per-day budget for one model. 0 = no limit."""
+
+    rpm: int = Field(default=0, ge=0)
+    rpd: int = Field(default=0, ge=0)
 
 
 class Settings(BaseSettings):
@@ -29,8 +36,9 @@ class Settings(BaseSettings):
     # Used for a call only when the main model stays overloaded after all retries. Empty = no fallback.
     gemini_extraction_fallback_model: str | None = None
     gemini_qa_fallback_model: str | None = None
-    gemini_rpm: int = Field(default=10, ge=0, description="Requests per minute per model; 0 = no limit")
-    gemini_rpd: int = Field(default=250, ge=0, description="Requests per day per model; 0 = no limit")
+    # Per-model request budgets, since different Gemini models have different free-tier quotas
+    # (check https://aistudio.google.com/rate-limit). A model missing here is unlimited client-side.
+    gemini_model_limits: dict[str, ModelRateLimit] = Field(default_factory=dict)
     gemini_max_retries: int = Field(default=5, ge=0)
 
     # Neo4j
@@ -60,6 +68,12 @@ class Settings(BaseSettings):
         """The configured fallback for "extraction" or "qa", or None if blank."""
         value = self.gemini_extraction_fallback_model if purpose == "extraction" else self.gemini_qa_fallback_model
         return (value or "").strip() or None
+
+    def rate_limits(self) -> dict:
+        """`gemini_model_limits` as `rate_limiter.ModelLimit` objects, keyed by model name."""
+        from src.llm.rate_limiter import ModelLimit
+
+        return {name: ModelLimit(cfg.rpm, cfg.rpd) for name, cfg in self.gemini_model_limits.items()}
 
     @property
     def cache_dir(self) -> Path:

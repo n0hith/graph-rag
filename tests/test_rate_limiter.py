@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from src.llm.rate_limiter import DailyLimitReached, RateLimiter, backoff_delay
+from src.llm.rate_limiter import DailyLimitReached, ModelLimit, RateLimiter, backoff_delay
 
 
 class FakeClock:
@@ -23,9 +23,12 @@ class FakeClock:
 
 
 def make_limiter(rpm=3, rpd=0, state_file=None, day="2026-10-14"):
+    """A limiter with the same rpm/rpd applied to every model key (most tests don't
+    care about per-model differences; `test_different_models_have_independent_limits`
+    below is the one that does)."""
     clock = FakeClock()
     days = {"today": day}
-    limiter = RateLimiter(
+    limiter = RateLimiter.uniform(
         rpm, rpd, state_file, clock=clock, sleep=clock.sleep, today=lambda: days["today"]
     )
     return limiter, clock, days
@@ -52,6 +55,25 @@ def test_rpm_is_tracked_per_model():
     limiter.acquire("model-a")
     limiter.acquire("model-b")
     assert clock.sleeps == []
+
+
+def test_different_models_can_have_different_limits():
+    limiter = RateLimiter({"small-model": ModelLimit(rpm=0, rpd=1), "big-model": ModelLimit(rpm=0, rpd=5)})
+    limiter.acquire("small-model")
+    with pytest.raises(DailyLimitReached, match="small-model"):
+        limiter.acquire("small-model")
+    for _ in range(5):
+        limiter.acquire("big-model")  # well past small-model's budget, but allowed here
+    with pytest.raises(DailyLimitReached, match="big-model"):
+        limiter.acquire("big-model")
+
+
+def test_model_not_listed_falls_back_to_default():
+    limiter = RateLimiter({"listed": ModelLimit(rpd=1)}, default=ModelLimit(rpd=2))
+    limiter.acquire("unlisted")
+    limiter.acquire("unlisted")
+    with pytest.raises(DailyLimitReached):
+        limiter.acquire("unlisted")
 
 
 def test_zero_means_unlimited():

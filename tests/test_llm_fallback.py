@@ -1,24 +1,34 @@
-"""Tests for switching to the fallback model when the main model stays overloaded."""
+"""Tests for switching to the fallback model when the main model stays overloaded
+or has run out of its daily quota."""
 
 import pytest
 
 from src.llm.cache import LLMCache
 from src.llm.client import LLMClient, LLMRequest, LLMResponse, ModelUnavailableError
+from src.llm.rate_limiter import DailyLimitReached
 
 
 class ModelAwareProvider:
-    """Fails for models listed in `down`, answers with the model name otherwise."""
+    """Fails for models listed in `down`, answers with the model name otherwise.
+
+    `down` maps a model name to the error it should raise: `ModelUnavailableError` for
+    "still overloaded after retries", `DailyLimitReached` for "today's quota is used up"
+    (either our own counter or Gemini's own error ends up as this exception).
+    """
 
     name = "fake"
 
-    def __init__(self, down: set[str]) -> None:
-        self.down = set(down)
+    def __init__(self, down: dict[str, type[Exception]] | set[str]) -> None:
+        if isinstance(down, set):
+            down = {model: ModelUnavailableError for model in down}
+        self.down = down
         self.calls: list[str] = []
 
     def generate(self, request: LLMRequest) -> LLMResponse:
         self.calls.append(request.model)
-        if request.model in self.down:
-            raise ModelUnavailableError(f"{request.model} overloaded")
+        error = self.down.get(request.model)
+        if error is not None:
+            raise error(f"{request.model} unavailable")
         return LLMResponse(f"answer from {request.model}", prompt_tokens=4, output_tokens=2)
 
 
@@ -71,3 +81,24 @@ def test_no_fallback_configured_raises_after_main_fails(tmp_path):
     with pytest.raises(ModelUnavailableError):
         client.generate_text("q")
     assert provider.calls == ["main"]
+
+
+def test_switches_to_fallback_when_main_is_out_of_daily_quota(tmp_path):
+    client, provider = make_client(tmp_path, down={"main": DailyLimitReached})
+    assert client.generate_text("q") == "answer from backup"
+    assert client.last_model == "backup"
+    assert provider.calls == ["main", "backup"]
+
+
+def test_stops_cleanly_when_fallback_is_also_out_of_daily_quota(tmp_path):
+    client, provider = make_client(tmp_path, down={"main": DailyLimitReached, "backup": DailyLimitReached})
+    with pytest.raises(DailyLimitReached):
+        client.generate_text("q")
+    assert provider.calls == ["main", "backup"]
+
+
+def test_overloaded_main_can_fall_back_to_a_quota_exhausted_backup_and_still_raise(tmp_path):
+    client, provider = make_client(tmp_path, down={"main": ModelUnavailableError, "backup": DailyLimitReached})
+    with pytest.raises(DailyLimitReached):
+        client.generate_text("q")
+    assert provider.calls == ["main", "backup"]

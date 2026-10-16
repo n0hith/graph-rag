@@ -1,4 +1,8 @@
-"""Client-side rate limiting (requests per minute and per day) and retry backoff."""
+"""Client-side rate limiting (requests per minute and per day) and retry backoff.
+
+Different Gemini models have different free-tier quotas, so limits are tracked per
+model name rather than as one number for every call.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,7 @@ import random
 import threading
 import time
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -29,27 +34,36 @@ def pacific_today() -> str:
     return datetime.now(QUOTA_TIMEZONE).date().isoformat()
 
 
+@dataclass(frozen=True)
+class ModelLimit:
+    """A requests-per-minute and requests-per-day budget. 0 means no limit."""
+
+    rpm: int = 0
+    rpd: int = 0
+
+
 class RateLimiter:
     """Enforces a requests-per-minute and a requests-per-day budget, tracked per key (model).
 
-    The per-minute window lives in memory. The per-day count is stored in a small JSON file,
-    so it survives restarts and a long job that hits the cap can resume the next day.
-    A limit of 0 disables that check.
+    Each model can have its own `ModelLimit` (`limits`); a model not listed there gets
+    `default`. The per-minute window lives in memory. The per-day count is stored in a
+    small JSON file, so it survives restarts and a long job that hits the cap can resume
+    the next day.
     """
 
     def __init__(
         self,
-        rpm: int,
-        rpd: int,
+        limits: dict[str, ModelLimit] | None = None,
         state_file: Path | None = None,
         *,
+        default: ModelLimit = ModelLimit(),
         window_seconds: float = 60.0,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
         today: Callable[[], str] = pacific_today,
     ) -> None:
-        self.rpm = rpm
-        self.rpd = rpd
+        self.limits = dict(limits or {})
+        self.default = default
         self.state_file = state_file
         self.window_seconds = window_seconds
         self._clock = clock
@@ -59,21 +73,30 @@ class RateLimiter:
         self._recent: dict[str, deque[float]] = {}
         self._memory_state: dict = {"date": None, "counts": {}}
 
+    @classmethod
+    def uniform(cls, rpm: int, rpd: int, state_file: Path | None = None, **kwargs) -> "RateLimiter":
+        """The same rpm/rpd limit for every model key. Handy when only one model is in play."""
+        return cls({}, state_file, default=ModelLimit(rpm, rpd), **kwargs)
+
+    def limit_for(self, key: str) -> ModelLimit:
+        return self.limits.get(key, self.default)
+
     def acquire(self, key: str) -> None:
         """Block until a request for `key` is allowed, then record it.
 
         Raises:
             DailyLimitReached: if today's budget for `key` is already used up.
         """
+        limit = self.limit_for(key)
         with self._lock:
             state = self._load_daily_state()
             used = state["counts"].get(key, 0)
-            if self.rpd and used >= self.rpd:
+            if limit.rpd and used >= limit.rpd:
                 raise DailyLimitReached(
-                    f"Daily request limit reached for {key} ({used}/{self.rpd} today, Pacific time). "
+                    f"Daily request limit reached for {key} ({used}/{limit.rpd} today, Pacific time). "
                     "Progress is saved; run the same command again after the quota resets."
                 )
-            self._wait_for_minute_slot(key)
+            self._wait_for_minute_slot(key, limit.rpm)
             state["counts"][key] = used + 1
             self._save_daily_state(state)
 
@@ -82,15 +105,15 @@ class RateLimiter:
         with self._lock:
             return self._load_daily_state()["counts"].get(key, 0)
 
-    def _wait_for_minute_slot(self, key: str) -> None:
-        if not self.rpm:
+    def _wait_for_minute_slot(self, key: str, rpm: int) -> None:
+        if not rpm:
             return
         recent = self._recent.setdefault(key, deque())
         while True:
             now = self._clock()
             while recent and now - recent[0] >= self.window_seconds:
                 recent.popleft()
-            if len(recent) < self.rpm:
+            if len(recent) < rpm:
                 recent.append(now)
                 return
             wait = self.window_seconds - (now - recent[0])

@@ -41,7 +41,7 @@ def make_provider(outcomes, max_retries=3):
     sleeps = []
     provider = GeminiProvider(
         api_key=None,
-        rate_limiter=RateLimiter(rpm=0, rpd=0),
+        rate_limiter=RateLimiter.uniform(0, 0),
         max_retries=max_retries,
         sdk_client=SimpleNamespace(models=models),
         sleep=sleeps.append,
@@ -99,7 +99,7 @@ def test_client_side_daily_limit_blocks_before_calling_api():
     models = FakeModels([ok_response()])
     provider = GeminiProvider(
         api_key=None,
-        rate_limiter=RateLimiter(rpm=0, rpd=1),
+        rate_limiter=RateLimiter.uniform(0, 1),
         sdk_client=SimpleNamespace(models=models),
     )
     provider.generate(REQUEST)
@@ -126,4 +126,4 @@ def test_empty_response_raises():
 
 def test_missing_api_key_gives_clear_error():
     with pytest.raises(MissingAPIKeyError, match="GEMINI_API_KEY"):
-        GeminiProvider(api_key=None, rate_limiter=RateLimiter(0, 0))
+        GeminiProvider(api_key=None, rate_limiter=RateLimiter.uniform(0, 0))

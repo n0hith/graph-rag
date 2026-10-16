@@ -53,18 +53,24 @@ python -m src.cli check-llm
 2. Click **Create API key** (create or pick a Google Cloud project when asked).
 3. Paste the key into `.env` as `GEMINI_API_KEY=...`. Never commit `.env`; it is in `.gitignore`.
 4. Open [aistudio.google.com/rate-limit](https://aistudio.google.com/rate-limit) to see your
-   per-minute and per-day limits for the Flash model. Set `GEMINI_RPM` and `GEMINI_RPD` in
-   `.env` to those numbers or slightly below.
+   per-minute and per-day limits — **check every model you've set** (`GEMINI_EXTRACTION_MODEL`,
+   `GEMINI_QA_MODEL`, and both fallback models), since they often differ. Set each one's numbers
+   in `GEMINI_MODEL_LIMITS` in `.env`, or slightly below.
 
 API limits depend on whether billing is enabled on the API key's Google Cloud project. They are
 separate from consumer subscriptions such as Google AI Pro.
 
 ### Rate limits and resuming
 
-- `GEMINI_RPM` makes the client wait so it never sends more than that many requests per minute.
-- `GEMINI_RPD` counts requests per model per day (Pacific time, when Google resets quotas), saved in
-  `data/cache/daily_quota.json`. When the budget is used up, or Gemini itself reports the daily
-  quota is exhausted, the command stops with a clear message. Run it again the next day to continue.
+- `GEMINI_MODEL_LIMITS` is a JSON map of model name -> `{"rpm": N, "rpd": N}`. The client waits
+  so it never sends more than `rpm` requests per minute to that model, and tracks `rpd` per
+  model per day (Pacific time, when Google resets quotas), saved in `data/cache/daily_quota.json`.
+  A model not listed has no client-side limit.
+- When a model's daily budget is used up — either our own counter, or Gemini itself reporting the
+  daily quota is exhausted — that call switches to the configured fallback model, the same as
+  when a model is overloaded. The command only stops (with a clear, resumable message) if the
+  fallback is also out of quota, or there is no fallback configured. Run it again the next day
+  (or once the quota resets) to continue.
 - Every successful LLM response is cached in `data/cache/llm/`, so re-runs don't repeat calls.
 - If the main model is still overloaded after all retries, that one call switches to
   `GEMINI_EXTRACTION_FALLBACK_MODEL` / `GEMINI_QA_FALLBACK_MODEL` (leave empty to disable).
@@ -176,7 +182,7 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
   calls, no cost) and stored in a persistent ChromaDB collection under `data/vector_store/`.
   Re-running `baseline-index` skips a company whose PDF (by sha256) and embedding model
   haven't changed.
-- `ask --mode baseline` embeds the question, retrieves the top-k chunks (`GEMINI_RPM`/`GEMINI_RPD`
+- `ask --mode baseline` embeds the question, retrieves the top-k chunks (`GEMINI_MODEL_LIMITS`
   permitting), and asks `GEMINI_QA_MODEL` to answer using only those excerpts, citing
   `[Company, p.N]` for every claim. The CLI also prints the distinct (company, page) sources used.
 - This baseline is what the graph pipeline (Phase 6+) has to beat on multi-hop questions; it's
