@@ -100,9 +100,78 @@ def sectionize(
 
 
 @app.command()
-def extract() -> None:
-    """Extract facts from sections with table parsing and the LLM."""
-    _not_built(3)
+def extract(
+    company: list[str] = typer.Option(None, "--company", "-c", help="NSE symbol; repeat for several. Default: all."),
+    sample_size: int = typer.Option(20, help="How many facts to export to CSV for hand-checking."),
+) -> None:
+    """Extract facts from sectionized reports, with table parsing tried before the LLM."""
+    import json
+    from collections import Counter
+
+    from src.extract.extractor import ExtractionResult, estimate_calls, extract_company
+    from src.eval.sample_facts import export_sample
+    from src.llm.client import UsageTracker
+
+    settings = get_settings()
+    companies = _companies(company)
+
+    estimates = {c.nse_symbol: estimate_calls(settings.sections_dir, c.nse_symbol) for c in companies}
+    typer.secho("Estimated Gemini calls:", bold=True)
+    total_estimate = 0
+    for symbol, breakdown in estimates.items():
+        subtotal = sum(breakdown.values())
+        total_estimate += subtotal
+        typer.echo(f"  {symbol:<11} {subtotal:<4} ({', '.join(f'{k}={v}' for k, v in breakdown.items())})")
+    typer.echo(f"  total: {total_estimate}\n")
+
+    tracker = UsageTracker()
+    try:
+        client = build_client(settings, purpose="extraction", tracker=tracker)
+    except LLMError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    combined = ExtractionResult()
+    try:
+        for c in companies:
+            result = extract_company(c, settings.sections_dir, client)
+            combined.facts.extend(result.facts)
+            combined.dropped.extend(result.dropped)
+            combined.calls_used += result.calls_used
+    except (DailyLimitReached, APIError, LLMError) as exc:
+        typer.secho(f"\nStopped early: {exc}", fg=typer.colors.YELLOW)
+
+    out_dir = settings.data_dir / "extracted"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for c in companies:
+        facts_for_company = [f for f in combined.facts if f.nse_symbol == c.nse_symbol]
+        path = out_dir / f"{c.nse_symbol}.jsonl"
+        with path.open("w", encoding="utf-8") as fh:
+            for f in facts_for_company:
+                fh.write(json.dumps(
+                    {"fact_type": f.fact_type, "method": f.method, "company": f.company,
+                     "nse_symbol": f.nse_symbol, "section_type": f.section_type, "page": f.page,
+                     "fy": f.fy, "data": f.data, "evidence": f.evidence},
+                    ensure_ascii=False,
+                ) + "\n")
+
+    by_type_method = Counter((f.fact_type, f.method) for f in combined.facts)
+    typer.secho("\nFacts extracted:", bold=True)
+    for (fact_type, method), n in sorted(by_type_method.items()):
+        typer.echo(f"  {fact_type:<15} {method:<6} {n}")
+    typer.echo(f"  total: {len(combined.facts)}")
+
+    typer.secho(f"\nDropped by the evidence-quote check: {len(combined.dropped)}", bold=True)
+    for d in combined.dropped[:10]:
+        typer.echo(f"  [{d.fact_type}/{d.section_type}] {d.reason}: {d.evidence[:100]!r}")
+
+    typer.echo(f"\nActual Gemini calls used: {combined.calls_used} (estimated {total_estimate})")
+    typer.echo(client.tracker.summary())
+    typer.echo(f"\nFacts saved under {out_dir}")
+
+    if combined.facts:
+        sample_path = export_sample(combined.facts, out_dir / "sample_for_review.csv", sample_size)
+        typer.secho(f"Sample of {min(sample_size, len(combined.facts))} facts for hand-checking: {sample_path}", bold=True)
 
 
 @app.command()
