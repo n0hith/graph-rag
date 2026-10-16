@@ -129,6 +129,34 @@ def test_llm_fact_with_bad_evidence_is_dropped_and_logged(tmp_path):
     assert result.dropped[0].data["person_name"] == "Someone Else"
 
 
+def test_kmp_captures_status_and_dates_like_directors(tmp_path):
+    cg = _section("corporate_governance", [_page(
+        50, "Jane Doe was appointed Chief Financial Officer effective June 1, 2023. "
+            "John Roe ceased to be Company Secretary effective March 31, 2024."
+    )])
+    sections_dir = write_sections(tmp_path, {"corporate_governance": cg})
+
+    kmp = {
+        "kmp": [
+            {"person_name": "Jane Doe", "role": "CFO", "status": "appointed", "appointed_on": "June 1, 2023",
+             "evidence": "Jane Doe was appointed Chief Financial Officer effective June 1, 2023"},
+            {"person_name": "John Roe", "role": "Company Secretary", "status": "ceased", "ceased_on": "March 31, 2024",
+             "evidence": "John Roe ceased to be Company Secretary effective March 31, 2024"},
+        ]
+    }
+    client, _ = make_client(tmp_path, responses={"Chief Executive Officer (CEO)": json.dumps(kmp)})
+
+    result = extract_company(COMPANY, sections_dir, client)
+    kmp_facts = {f.data["person_name"]: f.data for f in result.facts if f.fact_type == "kmp"}
+
+    assert kmp_facts["Jane Doe"]["status"] == "appointed"
+    assert kmp_facts["Jane Doe"]["appointed_on"] == "June 1, 2023"
+    assert kmp_facts["Jane Doe"]["ceased_on"] is None
+
+    assert kmp_facts["John Roe"]["status"] == "ceased"
+    assert kmp_facts["John Roe"]["ceased_on"] == "March 31, 2024"
+
+
 def test_page_groups_split_long_sections_into_several_calls(tmp_path):
     pages = [_page(n, f"page {n} text") for n in range(1, 14)]  # 13 pages, group size 6 -> 3 calls
     rpt = _section("related_party", pages)

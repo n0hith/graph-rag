@@ -35,6 +35,9 @@ class KmpFact(BaseModel):
 
     person_name: str
     role: Literal["CEO", "CFO", "Company Secretary"]
+    status: Literal["current", "ceased", "appointed"] = "current"
+    appointed_on: str | None = None
+    ceased_on: str | None = None
     evidence: str
 
 

@@ -38,7 +38,12 @@ def kmp_prompt(pages: list[dict]) -> str:
         "Officer (CEO), Chief Financial Officer (CFO), and Company Secretary, if named. "
         "`role` must be exactly one of 'CEO', 'CFO', or 'Company Secretary' — map titles "
         "like 'CEO & Managing Director' or 'Chief Executive Officer and MD' to 'CEO'. "
-        "Skip anyone whose role here isn't one of these three.\n\n"
+        "Skip anyone whose role here isn't one of these three. Set `status` to 'ceased' "
+        "only if the text marks them as having resigned, ceased, or an erstwhile/outgoing "
+        "holder of that role; 'appointed' only if the text says they took up the role "
+        "partway through the year; otherwise 'current'. Fill `appointed_on` or `ceased_on` "
+        "only when the report states an actual date for that change; leave them null "
+        "otherwise — never guess a date.\n\n"
         f"Report excerpt:\n{_paged_text(pages)}"
     )
 
