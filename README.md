@@ -187,3 +187,11 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
   `[Company, p.N]` for every claim. The CLI also prints the distinct (company, page) sources used.
 - This baseline is what the graph pipeline (Phase 6+) has to beat on multi-hop questions; it's
   built to be a fair, reasonably strong baseline, not a strawman.
+- Early manual test questions and their answers are recorded in `src/eval/baseline_notes.md`
+  (candidates for the Phase 7 evaluation set).
+
+### To do before Phase 7
+
+- Strengthen the baseline so the eventual graph-vs-baseline comparison is fair: retrieve more
+  chunks, add keyword (BM25-style) search alongside the semantic search and combine the two
+  (hybrid search), and filter to a company's own chunks first when the question names one.
