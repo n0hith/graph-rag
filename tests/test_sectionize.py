@@ -9,7 +9,9 @@ import pytest
 from src.ingest.companies import Company
 from src.ingest.sectionize import (
     SECTION_TYPES,
+    _fix_rupee_glyphs,
     _is_next_note,
+    _read_page,
     _repair_cell,
     detect_sections,
     extract_tables,
@@ -235,6 +237,39 @@ def test_extract_tables_falls_back_to_pdfplumber_when_pymupdf_finds_nothing(tmp_
 )
 def test_repair_cell_only_reorders_never_adds_or_drops_text(extracted, clipped, expected):
     assert _repair_cell(extracted, clipped) == expected
+
+
+def _span_dict(*spans: tuple[str, str]) -> dict:
+    """A minimal `get_text("dict")` result: one line holding (text, font) spans."""
+    return {"blocks": [{"lines": [{"spans": [{"text": t, "font": f} for t, f in spans]}]}]}
+
+
+def test_rupee_font_stand_ins_become_the_rupee_sign():
+    data = _span_dict(("exposure: ", "MyriadPro-Regular"), ("H", "DYYGHI+ITFRupee"),
+                      ("37,172 crore. Held by I", "MyriadPro-Regular"), ("J ", "XBIKJY+ITFRupee"),
+                      ("crore", "MyriadPro-Regular"))
+    text = "exposure: H37,172 crore. Held by IJ crore\n"
+    # The real "I" (MyriadPro) stays; only the rupee font's H and J change.
+    assert _fix_rupee_glyphs(text, data) == "exposure: ₹37,172 crore. Held by I₹ crore\n"
+
+
+def test_backtick_rupee_and_page_without_a_rupee_font():
+    data = _span_dict(("Revenue ", "Calibri"), ("`", "ASJHEV+Rupee"), ("2,40,893 crore", "Calibri"))
+    assert _fix_rupee_glyphs("Revenue `2,40,893 crore", data) == "Revenue ₹2,40,893 crore"
+    plain = _span_dict(("Hello H1", "Calibri"))
+    assert _fix_rupee_glyphs("Hello H1", plain) == "Hello H1"
+
+
+STEEL_PDF = Path(__file__).resolve().parents[1] / "data" / "raw_pdfs" / "TATASTEEL.pdf"
+
+
+@pytest.mark.skipif(not STEEL_PDF.exists(), reason="needs the real Tata Steel report in data/raw_pdfs")
+def test_tata_steel_rupee_signs_are_restored():
+    with pymupdf.open(STEEL_PDF) as doc:
+        texts = {n: " ".join(_read_page(n, doc[n - 1]).text.split()) for n in (249, 295, 408)}
+    assert "₹37,172 crore" in texts[249] and "H37,172" not in texts[249]
+    assert "amounts to ₹43,815.17 crore" in texts[295]
+    assert "(₹ crore)" in texts[408] and "(H crore)" not in texts[408]
 
 
 TCS_PDF = Path(__file__).resolve().parents[1] / "data" / "raw_pdfs" / "TCS.pdf"

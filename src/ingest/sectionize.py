@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 # Bump when detection rules (or table extraction) change, so `sectionize` redoes companies
 # processed by older rules.
-DETECTOR_VERSION = 2
+DETECTOR_VERSION = 3
 
 SECTION_TYPES = (
     "corporate_governance",
@@ -215,11 +215,44 @@ def _read_page(number: int, pdf_page) -> Page:
     headings = [Heading(t, s) for t, s, b in lines if b or s >= body * 1.15]
     return Page(
         number=number,
-        text=pdf_page.get_text(textpage=textpage),
+        text=_fix_rupee_glyphs(pdf_page.get_text(textpage=textpage), data),
         headings=headings,
         body_size=body,
         rotated=sideways > upright,
     )
+
+
+RUPEE_FONT_RE = re.compile(r"rupee", re.I)
+RUPEE_STAND_IN_RE = re.compile(r"[A-Za-z`]")
+
+
+def _fix_rupee_glyphs(text: str, data: dict) -> str:
+    """Put "₹" back where a rupee font drew it with a stand-in character.
+
+    Reports draw ₹ in a dedicated font ("ITFRupee", "Rupee", "RupeeForadian") whose glyph is
+    mapped to an ordinary character, so the text layer reads "H37,172 crore", "(J crore)",
+    "I43,815.17 crore" (Tata Steel: H/J/I/K/R/B/L) or "`500 crore" (TCS, Infosys). Only the
+    font tells these apart from real letters, so each span drawn in a rupee font is found in
+    `text` (spans come in the same order as the text layer) and its letters/backticks replaced.
+    """
+    spans = [
+        s for block in data["blocks"] for line in block.get("lines", []) for s in line["spans"] if s["text"]
+    ]
+    if not any(RUPEE_FONT_RE.search(s["font"]) for s in spans):
+        return text
+    out, cursor = [], 0
+    for span in spans:
+        at = text.find(span["text"], cursor)
+        if at < 0:
+            continue  # not found in order: leave this span as the text layer has it
+        if RUPEE_FONT_RE.search(span["font"]):
+            out.append(text[cursor:at])
+            out.append(RUPEE_STAND_IN_RE.sub("₹", span["text"]))
+        else:
+            out.append(text[cursor : at + len(span["text"])])
+        cursor = at + len(span["text"])
+    out.append(text[cursor:])
+    return "".join(out)
 
 
 def _looks_like_toc(page: Page) -> bool:

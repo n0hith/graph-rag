@@ -168,6 +168,12 @@ Not yet available (Phase 7).
   Steel's or Tata Motors' AOC-1 subsidiary list still returns nothing. Full page text is
   always saved regardless, so the LLM can still read these tables as text in Phase 3; sending
   page images to Gemini is the next option if that's not good enough.
+- Some table cells lose their first letter, apparently because the detected cell edge clips
+  the first glyph (Tata Steel p.249 "otal", p.409 "utstanding payables", "ale of Fixed
+  Assets"; Infosys p.114 "pril", "uary"). It's not the ligature problem fixed in `sectionize`:
+  the letter is missing, not reordered, so it can't be repaired from the cell's own text.
+  None of these tables are parsed into facts (related-party facts come from page text via the
+  LLM), so extraction isn't affected, but anything that later reads these table cells is.
 - The company's own secretarial audit report is kept as `secretarial_audit.json`; any material
   subsidiaries' own secretarial audit reports in the same PDF (Tata Motors has 2, Tata Steel
   has 1) are kept too, as separate `secretarial_audit_subsidiary_N.json` files tagged with
@@ -218,6 +224,10 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
 - **Renamed subsidiary:** "TCS Technology Solutions AG" was renamed "TCS Technology Solution
   GmbH" (note on TCS's Form AOC-1, p.307). Treat the two names as the same company, along
   with "TCS Technology Solutions GmbH", the spelling in the AOC-1 table itself (p.306).
+- **Merged subsidiary:** "Saudi Desert Rose Holding B.V. merged with Tata Consultancy Services
+  Netherlands BV w.e.f. August 29, 2023" (same AOC-1 notes, p.307). Saudi Desert Rose shouldn't
+  appear as a current, separate subsidiary after that date; record the merger rather than
+  treat the two as one company.
 - **Lookalike characters:** Tata Steel's PDF text renders "Neelachal Ispat Nigam Limited" as
   "Neelachal lspat Nigam Limited" (lowercase "l" for capital "I", a font-encoding quirk). Name
   matching should treat "l" and "I" as lookalikes (e.g. fold both to one character) before
