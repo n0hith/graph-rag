@@ -11,7 +11,7 @@ import pytest
 from src.ingest.companies import Company
 from src.llm.cache import LLMCache
 from src.llm.client import LLMClient, LLMRequest, LLMResponse
-from src.extract.extractor import Fact, _dedupe, _find_page, estimate_calls, extract_company
+from src.extract.extractor import Fact, _checked_frn, _dedupe, _find_page, estimate_calls, extract_company
 
 COMPANY = Company("Example Ltd", "EX", "L00000MH0000PLC000000", "https://example.invalid/ar.pdf")
 
@@ -178,3 +178,85 @@ def test_estimate_calls_counts_zero_for_a_table_backed_section(tmp_path):
     estimate = estimate_calls(sections_dir, COMPANY.nse_symbol)
     assert estimate["directors"] == 0
     assert estimate["kmp"] == 1
+
+
+# ---------------------------------------------------------------- auditor FRN check
+
+
+@pytest.mark.parametrize(
+    "value, evidence, expected",
+    [
+        ("101248W/W-100022", "For B S R & Co. LLP\nChartered Accountants\nFirm’s Registration No.: 101248W/W-100022", "101248W/W-100022"),
+        ("117366W/W-100018", "Firm Registration Number 117366W/W-100018", "117366W/W-100018"),
+        ("117366W", "ICAI FRN: 117366W", "117366W"),
+        # TCS's secretarial auditor: a peer-review certificate number is not an FRN.
+        ("PR No.: 1129/2021", "For Parikh & Associates\nFCS No: 327 CP No: 1228\nPR No.: 1129/2021", None),
+        ("1129/2021", "For Parikh & Associates\nFCS No: 327 CP No: 1228\nPR No.: 1129/2021", None),
+        ("327", "FCS No: 327 CP No: 1228", None),
+        # Label present, but the value isn't what it labels.
+        ("999999X", "Firm’s Registration No.: 101248W", None),
+        (None, "Firm’s Registration No.: 101248W", None),
+    ],
+)
+def test_checked_frn_keeps_only_labelled_firm_registration_numbers(value, evidence, expected):
+    assert _checked_frn(value, evidence) == expected
+
+
+def test_auditor_fact_with_a_peer_review_number_gets_no_frn(tmp_path):
+    text = "For Parikh & Associates\nCompany Secretaries\nFCS No: 327 CP No: 1228\nPR No.: 1129/2021"
+    sec = _section("secretarial_audit", [_page(68, text)])
+    sections_dir = write_sections(tmp_path, {"secretarial_audit": sec})
+    auditors = {"auditors": [{"firm_name": "Parikh & Associates", "firm_registration_no": "PR No.: 1129/2021",
+                              "evidence": text}]}
+    client, _ = make_client(tmp_path, responses={"secretarial audit report": json.dumps(auditors)})
+
+    [fact] = extract_company(COMPANY, sections_dir, client).facts
+    assert fact.data["firm_name"] == "Parikh & Associates"
+    assert fact.data["firm_registration_no"] is None
+
+
+# ---------------------------------------------------------------- other listed directorships
+
+
+def test_table_directorships_become_facts_reported_by_this_company(tmp_path):
+    table = [
+        ["Name of the Director and DIN", "Category", "Directorship in other listed entity (Category of Directorship)"],
+        ["N Chandrasekaran (Chairman) DIN 00121863", "Non-Independent, Non-Executive", "1. Tata Steel Limited (N) 2. Tata Motors Limited (N)"],
+    ]
+    cg = _section("corporate_governance", [_page(98, "Category of directorship held: (N) Non-Independent, Non-Executive Director", tables=[table])])
+    sections_dir = write_sections(tmp_path, {"corporate_governance": cg})
+    client, _ = make_client(tmp_path, responses={})
+
+    result = extract_company(COMPANY, sections_dir, client)
+    [director] = [f for f in result.facts if f.fact_type == "director"]
+    others = [f for f in result.facts if f.fact_type == "other_directorship"]
+
+    assert "other_listed_directorships" not in director.data
+    assert [(f.data["company_name"], f.data["din"], f.data["reported_by"], f.page) for f in others] == [
+        ("Tata Steel Limited", "00121863", "EX", 98),
+        ("Tata Motors Limited", "00121863", "EX", 98),
+    ]
+    assert others[0].data["category"] == "Non-Independent, Non-Executive Director"
+    assert others[0].evidence == "Tata Steel Limited (N)"
+
+
+def test_llm_directorships_are_dropped_when_the_company_name_is_not_in_the_text(tmp_path):
+    text = "Mr N Chandrasekaran DIN: 00121863 NINED (C) Tata Chemicals Limited (NINED)"
+    cg = _section("corporate_governance", [_page(236, text)])
+    sections_dir = write_sections(tmp_path, {"corporate_governance": cg})
+    directors = {"directors": [{
+        "person_name": "N Chandrasekaran", "din": "00121863", "role": "Chairman",
+        "is_independent": False, "is_executive": False, "evidence": "Mr N Chandrasekaran DIN: 00121863",
+        "other_listed_directorships": [
+            {"company_name": "Tata Chemicals Limited", "category": "NINED"},
+            {"company_name": "Invented Holdings Limited", "category": "NINED"},
+        ],
+    }]}
+    client, _ = make_client(tmp_path, responses={"Board of Directors member mentioned": json.dumps(directors)})
+
+    result = extract_company(COMPANY, sections_dir, client)
+    others = [f for f in result.facts if f.fact_type == "other_directorship"]
+
+    assert [f.data["company_name"] for f in others] == ["Tata Chemicals Limited"]
+    assert others[0].method == "llm"
+    assert [d.evidence for d in result.dropped] == ["Invented Holdings Limited"]

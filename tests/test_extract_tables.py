@@ -1,6 +1,11 @@
 """Tests for parsing facts directly out of a table (no LLM involved)."""
 
-from src.extract.tables import parse_directors_table, parse_subsidiaries_table
+from src.extract.tables import (
+    parse_category_legend,
+    parse_directors_table,
+    parse_listed_directorships,
+    parse_subsidiaries_table,
+)
 
 
 def test_parses_a_director_row_with_role_and_din():
@@ -16,6 +21,7 @@ def test_parses_a_director_row_with_role_and_din():
         "is_independent": False,
         "is_executive": False,
         "status": "current",
+        "other_listed_directorships": [],
         "evidence": "N Chandrasekaran (Chairman) DIN 00121863 | Non-Independent, Non-Executive",
     }
 
@@ -75,3 +81,60 @@ def test_subsidiary_table_skips_empty_name_columns():
     rows = parse_subsidiaries_table(table)
     assert len(rows) == 1
     assert rows[0]["subsidiary_name"] == "Example Inc"
+
+
+# ---------------------------------------------------------------- other listed directorships
+
+TCS_LEGEND_TEXT = (
+    "Category of directorship held: \n(N) Non-Independent, Non-Executive Director, "
+    "(I) Independent, Non-Executive Director, (ED) Executive Director\n"
+)
+
+
+def test_parses_the_category_legend_under_the_table():
+    assert parse_category_legend(TCS_LEGEND_TEXT) == {
+        "N": "Non-Independent, Non-Executive Director",
+        "I": "Independent, Non-Executive Director",
+        "ED": "Executive Director",
+    }
+
+
+def test_legend_is_only_read_after_its_heading():
+    assert parse_category_legend("(N) Non-Independent Director appears in prose") == {}
+
+
+def test_parses_numbered_directorships_with_codes_and_notes():
+    cell = ("1. HDFC Bank Limited (N) 2. HDFC ERGO General Insurance Company Limited [(N) Debt Listed] "
+            "3. Aadhar Housing Finance Limited (Debt Listed) (I) 4. Torrent Power Limited (I) [ceased w.e.f. March 31, 2024]")
+    rows = parse_listed_directorships(cell, parse_category_legend(TCS_LEGEND_TEXT))
+    assert [(r["company_name"], r["category"], r["note"]) for r in rows] == [
+        ("HDFC Bank Limited", "Non-Independent, Non-Executive Director", None),
+        ("HDFC ERGO General Insurance Company Limited", "Non-Independent, Non-Executive Director", "Debt Listed"),
+        ("Aadhar Housing Finance Limited", "Independent, Non-Executive Director", "Debt Listed"),
+        ("Torrent Power Limited", "Independent, Non-Executive Director", "ceased w.e.f. March 31, 2024"),
+    ]
+    assert rows[0]["evidence"] == "HDFC Bank Limited (N)"
+
+
+def test_unnumbered_single_directorship_and_unknown_code():
+    [row] = parse_listed_directorships("Tata Motors Limited (NINED)")
+    assert row["company_name"] == "Tata Motors Limited"
+    assert row["category"] == "NINED"  # no legend: the code is kept as stated
+
+
+def test_dash_means_no_other_directorships():
+    assert parse_listed_directorships("-") == []
+    assert parse_listed_directorships("") == []
+
+
+def test_director_table_reads_the_other_listed_entity_column():
+    table = [
+        ["Name of the Director and DIN", "Category", "Directorship in other listed entity (Category of Directorship)"],
+        ["N Chandrasekaran (Chairman) DIN 00121863", "Non-Independent, Non-Executive",
+         "1. Tata Steel Limited (N) 2. Tata Motors Limited (N)"],
+        ["K Krithivasan* (CEO & MD) DIN 10106739", "Non-Independent, Executive", "-"],
+    ]
+    chandra, krithi = parse_directors_table(table, TCS_LEGEND_TEXT)
+    assert [d["company_name"] for d in chandra["other_listed_directorships"]] == ["Tata Steel Limited", "Tata Motors Limited"]
+    assert chandra["other_listed_directorships"][0]["category"] == "Non-Independent, Non-Executive Director"
+    assert krithi["other_listed_directorships"] == []

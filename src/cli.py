@@ -174,6 +174,27 @@ def extract(
         typer.secho(f"Sample of {min(sample_size, len(combined.facts))} facts for hand-checking: {sample_path}", bold=True)
 
 
+@app.command("check-directorships")
+def check_directorships_cmd() -> None:
+    """Check each report's claims about directorships at other pilot companies against
+    those companies' own extracted director lists."""
+    from collections import Counter
+
+    from src.eval.directorship_check import check_directorships
+
+    settings = get_settings()
+    checks = check_directorships(settings.data_dir / "extracted", _companies(None))
+    counts = Counter(c.status for c in checks)
+    typer.secho(f"{len(checks)} cross-company directorship claims: "
+                + ", ".join(f"{n} {s}" for s, n in sorted(counts.items())), bold=True)
+    for c in sorted(checks, key=lambda c: (c.status == "match", c.reported_by, c.target, c.person_name)):
+        colour = typer.colors.GREEN if c.status == "match" else typer.colors.YELLOW
+        typer.secho(f"  [{c.status}] {c.reported_by} says {c.person_name} (DIN {c.din or '?'}) is on "
+                    f"{c.target}'s board ({c.category or 'no category'})", fg=colour)
+        if c.detail:
+            typer.echo(f"      {c.detail}")
+
+
 @app.command()
 def resolve() -> None:
     """Merge duplicate people and companies."""

@@ -26,7 +26,14 @@ def director_prompt(pages: list[dict]) -> str:
         "`is_independent` and `is_executive` from the category stated for them (e.g. "
         "'Non-Independent, Executive'). Set `status` to 'ceased' only if the text marks "
         "them as having resigned, ceased, or an erstwhile/outgoing member; 'appointed' "
-        "only if the text says they joined partway through the year; otherwise 'current'.\n\n"
+        "only if the text says they joined partway through the year; otherwise 'current'. "
+        "If the report lists the director's directorships in other listed entities (often "
+        "a table column like 'Directorship in other listed entity (Category of "
+        "Directorship)'), put each one in `other_listed_directorships`: `company_name` "
+        "spelled exactly as in the excerpt, `category` as stated for it (expand an "
+        "abbreviation like 'NINED' or '(I)' only if the report's own key explains it), and "
+        "`note` for any remark on it such as 'Debt Listed' or a cessation date. Leave the "
+        "list empty if none are listed for them.\n\n"
         f"Report excerpt:\n{_paged_text(pages)}"
     )
 
@@ -64,9 +71,11 @@ def auditor_prompt(pages: list[dict], audit_type: str) -> str:
     return (
         f"{COMMON_RULES}\n\n"
         f"This excerpt is the company's {kind} audit report. Identify the audit firm that "
-        "signed it (usually near the end, after 'For <Firm Name>'), and its registration "
-        "number if stated (a firm registration number, FCS number, or similar identifier "
-        "near the signature block).\n\n"
+        "signed it (usually near the end, after 'For <Firm Name>'). Fill "
+        "`firm_registration_no` only with the firm's registration number, i.e. a value "
+        "labelled 'Firm Registration No.', 'Firm's Registration No.' or 'FRN'. Never put a "
+        "peer review certificate number ('PR No.'), FCS/ACS/membership number, CP number or "
+        "UDIN there; if no firm registration number is stated, leave it null.\n\n"
         f"Report excerpt:\n{_paged_text(pages)}"
     )
 

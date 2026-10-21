@@ -14,6 +14,16 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class ListedDirectorship(BaseModel):
+    """A directorship this report says one of its directors holds in another listed company
+    (-> `(Person)-[:DIRECTOR_OF {category, reported_by}]->(Company)`, reported by this
+    company, not by the other one)."""
+
+    company_name: str
+    category: str | None = None
+    note: str | None = None
+
+
 class DirectorFact(BaseModel):
     """One Board of Directors member (-> `(Person)-[:DIRECTOR_OF]->(Company)`)."""
 
@@ -23,6 +33,7 @@ class DirectorFact(BaseModel):
     is_independent: bool
     is_executive: bool
     status: Literal["current", "ceased", "appointed"] = "current"
+    other_listed_directorships: list[ListedDirectorship] = []
     evidence: str
 
 

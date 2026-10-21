@@ -91,6 +91,7 @@ python -m src.cli --help
 | `sectionize` | 1 | Find the governance report, AOC-1, auditor's report, secretarial audit and related-party note |
 | `baseline-index`, `ask --mode baseline` | 2 | Plain RAG baseline |
 | `extract` | 3 | Fact extraction |
+| `check-directorships` | 3 | Check each report's "directorship in other listed entity" claims against the other pilot company's own director list |
 | `resolve` | 4 | Entity resolution |
 | `load` | 5 | Load into Neo4j |
 | `ask` | 6 | Graph question answering |
@@ -209,3 +210,21 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
   model instead. If so: replace `GEMINI_API_KEY` with a fresh key first (the current one was
   shared in chat and is only safe to keep while on the free tier), and set a spend cap on that
   project before switching models.
+
+## Phase 3: fact extraction
+
+### Notes for Phase 4 (entity resolution)
+
+- **Renamed subsidiary:** "TCS Technology Solutions AG" was renamed "TCS Technology Solution
+  GmbH" (note on TCS's Form AOC-1, p.307). Treat the two names as the same company, along
+  with "TCS Technology Solutions GmbH", the spelling in the AOC-1 table itself (p.306).
+- **Lookalike characters:** Tata Steel's PDF text renders "Neelachal Ispat Nigam Limited" as
+  "Neelachal lspat Nigam Limited" (lowercase "l" for capital "I", a font-encoding quirk). Name
+  matching should treat "l" and "I" as lookalikes (e.g. fold both to one character) before
+  fuzzy-matching company or person names, so this doesn't become a duplicate entity.
+- **Directorships reported by another company:** `other_directorship` facts come from one
+  company's director table ("Directorship in other listed entity") and describe a seat on a
+  *different* company's board; `data.reported_by` says whose report made the claim. The other
+  company's own report is the authority on its board, so these should merge into, not
+  duplicate, that company's own `director` facts (`check-directorships` lists the ones that
+  don't line up).

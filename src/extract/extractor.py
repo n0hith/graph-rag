@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -77,12 +78,34 @@ class ExtractionResult:
     calls_used: int = 0
 
 
+# An auditor's `firm_registration_no` is only kept when the evidence quote shows it under
+# an FRN label; the model has put peer-review ("PR No.") numbers there otherwise.
+FRN_LABEL_RE = re.compile(r"firm['’]?s?\s+registration\s+(?:no|number)|\bFRN\b", re.I)
+NOT_AN_FRN_RE = re.compile(r"^\s*(?:PR|FCS|ACS|CP|UDIN|M(?:embership)?\.?\s*No)\b", re.I)
+
+
+def _checked_frn(value: str | None, evidence: str) -> str | None:
+    """`value` if the evidence quote labels it as a firm registration number, else None."""
+    if not value or NOT_AN_FRN_RE.search(value):
+        return None
+    flat = _norm_ws(evidence)
+    label = FRN_LABEL_RE.search(flat)
+    if not label or _norm_ws(value) not in flat[label.end():]:
+        return None
+    return value
+
+
 def _group_pages(pages: list[dict], size: int = GROUP_SIZE) -> list[list[dict]]:
     return [pages[i : i + size] for i in range(0, len(pages), size)]
 
 
+CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
 def _norm_ws(text: str) -> str:
-    return " ".join(text.split())
+    """Whitespace collapsed, and stray control characters dropped: some PDFs' text has them
+    inside words (TCS's p.98 reads "\\x07Tata Consumer"), which no LLM quote would copy."""
+    return " ".join(CONTROL_CHARS_RE.sub("", text).split())
 
 
 def _find_page(evidence: str, pages: list[dict]) -> int | None:
@@ -159,6 +182,8 @@ def _fact_key(fact_type: str, data: dict) -> tuple:
         return (fact_type, (data.get("din") or data.get("person_name", "")).lower())
     if fact_type == "kmp":
         return (fact_type, data.get("person_name", "").lower(), data.get("role", ""))
+    if fact_type == "other_directorship":
+        return (fact_type, (data.get("din") or data.get("person_name", "")).lower(), data.get("company_name", "").lower())
     if fact_type == "subsidiary":
         return (fact_type, data.get("subsidiary_name", "").lower())
     if fact_type == "auditor":
@@ -207,12 +232,48 @@ def _extract_llm_facts(
             data = item.model_dump(exclude={"evidence"})
             if extra_data:
                 data.update(extra_data)
+            if fact_type == "auditor":
+                data["firm_registration_no"] = _checked_frn(data.get("firm_registration_no"), item.evidence)
             page = _find_page(item.evidence, group)
             if page is None:
                 dropped.append(DroppedFact(fact_type, section_type, "evidence not found in source text", item.evidence, data))
                 continue
             facts.append(Fact(fact_type, "llm", company.name, company.nse_symbol, section_type, page, FY, data, item.evidence))
     return facts, dropped, calls
+
+
+def _directorship_facts(director: Fact, entries: list[dict], company: Company) -> list[Fact]:
+    """One `other_directorship` fact per directorship in another listed company that this
+    company's report lists for `director`. `reported_by` records whose report said so: the
+    other company's own report is the authority on its board, this is only a cross-reference."""
+    facts = []
+    for entry in entries:
+        entry = dict(entry)
+        evidence = entry.pop("evidence", None) or entry["company_name"]
+        data = {
+            "person_name": director.data["person_name"],
+            "din": director.data.get("din"),
+            **entry,
+            "reported_by": company.nse_symbol,
+        }
+        facts.append(Fact("other_directorship", director.method, company.name, company.nse_symbol,
+                          director.section_type, director.page, FY, data, evidence))
+    return facts
+
+
+def _checked_directorships(director: Fact, pages: list[dict]) -> tuple[list[dict], list[DroppedFact]]:
+    """The LLM's `other_listed_directorships` for `director`, keeping only companies whose
+    name appears on the director's page or the one after (a table row can wrap onto it)."""
+    nearby = [p for p in pages if director.page is not None and director.page <= p["page"] <= director.page + 1]
+    kept, dropped = [], []
+    for entry in director.data.pop("other_listed_directorships", []) or []:
+        if _find_page(entry["company_name"], nearby) is None:
+            dropped.append(DroppedFact("other_directorship", director.section_type,
+                                       "company name not found near the director's evidence",
+                                       entry["company_name"], {"person_name": director.data["person_name"], **entry}))
+        else:
+            kept.append(entry)
+    return kept, dropped
 
 
 def extract_company(company: Company, sections_dir: Path, client: LLMClient) -> ExtractionResult:
@@ -225,11 +286,12 @@ def extract_company(company: Company, sections_dir: Path, client: LLMClient) -> 
         table_facts = []
         for page in cg["pages"]:
             for table in page["tables"]:
-                for row in parse_directors_table(table):
+                for row in parse_directors_table(table, page["text"]):
                     evidence = row.pop("evidence")
-                    table_facts.append(
-                        Fact("director", "table", company.name, company.nse_symbol, "corporate_governance", page["page"], FY, row, evidence)
-                    )
+                    others = row.pop("other_listed_directorships")
+                    director = Fact("director", "table", company.name, company.nse_symbol, "corporate_governance", page["page"], FY, row, evidence)
+                    table_facts.append(director)
+                    table_facts.extend(_directorship_facts(director, others, company))
         if table_facts:
             result.facts.extend(table_facts)
         else:
@@ -237,7 +299,11 @@ def extract_company(company: Company, sections_dir: Path, client: LLMClient) -> 
                 client, cg["pages"], director_prompt, (DirectorFactList, "directors"),
                 "director", "corporate_governance", company, "extract.directors",
             )
-            result.facts.extend(facts)
+            for director in facts:
+                others, bad = _checked_directorships(director, cg["pages"])
+                result.facts.append(director)
+                result.facts.extend(_directorship_facts(director, others, company))
+                dropped.extend(bad)
             result.dropped.extend(dropped)
             result.calls_used += calls
 

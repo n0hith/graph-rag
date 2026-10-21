@@ -1,6 +1,7 @@
 """Section detection on a small synthetic annual report built with PyMuPDF."""
 
 import json
+from pathlib import Path
 
 import pymupdf
 import pytest
@@ -9,6 +10,7 @@ from src.ingest.companies import Company
 from src.ingest.sectionize import (
     SECTION_TYPES,
     _is_next_note,
+    _repair_cell,
     detect_sections,
     extract_tables,
     find_cin,
@@ -212,6 +214,42 @@ def test_extract_tables_falls_back_to_pdfplumber_when_pymupdf_finds_nothing(tmp_
     )
     tables = extract_tables(path, [1], rotated=set())
     assert tables[1][0] == [["Name", "Role"], ["A N Other", "Director"]]
+
+
+@pytest.mark.parametrize(
+    "extracted, clipped, expected",
+    [
+        # "ti" ligature scrambled by the table finder; page text has the same letters in order.
+        ("Non-Independent, Non-Executvi e", "Non-Independent,\nNon-Executive\n", "Non-Independent,\nNon-Executive\n"),
+        ("TCS Technology Solu i tons GmbH", "TCS Technology Solutions GmbH", "TCS Technology Solutions GmbH"),
+        # Stray control characters in the table finder's text don't block the repair.
+        ("2. T\x07ata Communicatoi ns Limited (N)", "2. Tata Communications Limited (N)", "2. Tata Communications Limited (N)"),
+        ("H\x07DFC Life", "something else", "HDFC Life"),
+        # The clip box caught a neighbouring cell's text too: keep the table finder's text.
+        ("Executive", "Executive 100%", "Executive"),
+        # The clip box missed part of the cell: keep the table finder's text.
+        ("TCS Solutions GmbH", "TCS Solutions", "TCS Solutions GmbH"),
+        ("", "anything", ""),
+        (None, "anything", None),
+    ],
+)
+def test_repair_cell_only_reorders_never_adds_or_drops_text(extracted, clipped, expected):
+    assert _repair_cell(extracted, clipped) == expected
+
+
+TCS_PDF = Path(__file__).resolve().parents[1] / "data" / "raw_pdfs" / "TCS.pdf"
+
+
+@pytest.mark.skipif(not TCS_PDF.exists(), reason="needs the real TCS report in data/raw_pdfs")
+def test_tcs_tables_have_no_ligature_scrambled_words():
+    # p.98 is the director table ("Executvi e"), p.305-306 the AOC-1 ("Solu i tons"); p.96
+    # has "Audit Commitet e", where a clip box would also catch a neighbouring cell's "t".
+    tables = extract_tables(TCS_PDF, [96, 98, 101, 305, 306], rotated=set())
+    cells = [cell for page in tables.values() for table in page for row in table for cell in row]
+    assert not [c for c in cells if any(bad in c for bad in ("Executvi", "Solu i", "Commitet", "Nominatoi"))]
+    assert "Audit Committee" in cells
+    assert "Independent, Non-Executive" in cells
+    assert "TCS Technology Solutions GmbH" in cells
 
 
 @pytest.mark.parametrize(

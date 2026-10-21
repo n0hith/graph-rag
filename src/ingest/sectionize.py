@@ -39,8 +39,9 @@ from src.ingest.download import sha256_file
 
 logger = logging.getLogger(__name__)
 
-# Bump when detection rules change, so `sectionize` redoes companies processed by older rules.
-DETECTOR_VERSION = 1
+# Bump when detection rules (or table extraction) change, so `sectionize` redoes companies
+# processed by older rules.
+DETECTOR_VERSION = 2
 
 SECTION_TYPES = (
     "corporate_governance",
@@ -545,6 +546,51 @@ def _clean_tables(raw_tables) -> list[list[list[str]]]:
     return cleaned
 
 
+CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _repair_cell(extracted: str | None, clipped: str) -> str | None:
+    """Prefer the cell's text as read by normal page extraction (`clipped`) when it holds
+    exactly the same characters as the table finder's text, just in a different order.
+
+    PyMuPDF's table finder sorts a cell's characters by position, which scrambles fonts that
+    draw "ti" as one ligature glyph (both letters share its box): "Executive" comes out as
+    "Executvi e", "Solutions" as "Solu i tons". Normal text extraction keeps the glyph's
+    letters in order. Requiring the same characters means page text that caught a neighbour
+    cell's text, or missed some of its own, never replaces the table finder's version."""
+    if not extracted:
+        return extracted
+    extracted = CONTROL_CHARS_RE.sub("", extracted)  # e.g. "T\x07ata" in TCS's p.98 table
+    if sorted("".join(extracted.split())) == sorted("".join(clipped.split())):
+        return clipped
+    return extracted
+
+
+def _cell_text(words: list[tuple], bbox) -> str:
+    """The page's words (normal reading order) whose centre falls inside `bbox`. Centres,
+    not a clip box, so a neighbouring cell's glyph that pokes over the border isn't caught."""
+    x0, y0, x1, y1 = bbox
+    return " ".join(
+        w[4] for w in words if x0 <= (w[0] + w[2]) / 2 <= x1 and y0 <= (w[1] + w[3]) / 2 <= y1
+    )
+
+
+def _pymupdf_tables(pdf_page) -> list[list[list[str | None]]]:
+    """Every table PyMuPDF finds on the page, with ligature-scrambled cells repaired."""
+    tables = []
+    words = None
+    for table in pdf_page.find_tables().tables:
+        rows = table.extract()
+        for row, table_row in zip(rows, table.rows):
+            for i, bbox in enumerate(table_row.cells[: len(row)]):
+                if bbox and row[i]:
+                    if words is None:
+                        words = pdf_page.get_text("words")
+                    row[i] = _repair_cell(row[i], _cell_text(words, bbox))
+        tables.append(rows)
+    return tables
+
+
 def extract_tables(pdf_path: Path, page_numbers: list[int], rotated: set[int]) -> dict[int, list[list[list[str]]]]:
     """Tables found on the given pages (rows of cell strings).
 
@@ -556,7 +602,7 @@ def extract_tables(pdf_path: Path, page_numbers: list[int], rotated: set[int]) -
     tables: dict[int, list[list[list[str]]]] = {}
     with pymupdf.open(pdf_path) as doc:
         for number in page_numbers:
-            found = _clean_tables(t.extract() for t in doc[number - 1].find_tables().tables)
+            found = _clean_tables(_pymupdf_tables(doc[number - 1]))
             if found:
                 tables[number] = found
 
