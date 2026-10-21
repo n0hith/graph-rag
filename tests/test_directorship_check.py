@@ -52,3 +52,12 @@ def test_claims_are_matched_by_din_then_name_and_mismatches_listed(tmp_path):
     assert checks[("O P Bhatt", "TATAMOTORS")].status == "missing"
     assert checks[("Hanne Sorensen", "TATAMOTORS")].status == "category differs"  # matched by name
     assert checks[("N Chandrasekaran", "TATASTEEL")].status == "target not extracted"
+
+
+def test_near_identical_company_spelling_still_counts_and_is_flagged(tmp_path):
+    consumer = Company("Tata Consumer Products Limited", "TATACONSUM", "", "")
+    _write(tmp_path, "TATACONSUM", [_claim("N. Chandrasekaran", "00121863", "Tata Consultancy Service Limited")])
+    _write(tmp_path, "TCS", [_director("N Chandrasekaran", "00121863", False)])
+    [check] = check_directorships(tmp_path, [TCS, consumer])
+    assert check.target == "TCS" and check.status == "match"
+    assert "matched loosely" in check.detail

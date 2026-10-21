@@ -13,6 +13,7 @@ Names are matched with a light normalization only (case, punctuation, "Ltd." vs 
 
 from __future__ import annotations
 
+import difflib
 import json
 import re
 from dataclasses import dataclass
@@ -58,6 +59,21 @@ class DirectorshipCheck:
     detail: str = ""
 
 
+LOOSE_MATCH = 0.93
+
+
+def _target(company_name: str, by_name: dict[str, str]) -> tuple[str | None, bool]:
+    """The pilot company a claim names: exact after normalization, else a near-identical
+    spelling (Tata Consumer's report has "Tata Consultancy Service Limited"), flagged loose."""
+    key = norm_company(company_name)
+    if key in by_name:
+        return by_name[key], False
+    best = max(by_name, key=lambda k: difflib.SequenceMatcher(None, key, k).ratio())
+    if difflib.SequenceMatcher(None, key, best).ratio() >= LOOSE_MATCH:
+        return by_name[best], True
+    return None, False
+
+
 def _load_facts(extracted_dir: Path, symbol: str) -> list[dict] | None:
     path = extracted_dir / f"{symbol}.jsonl"
     if not path.exists():
@@ -77,7 +93,7 @@ def check_directorships(extracted_dir: Path, companies: list[Company]) -> list[D
             if fact["fact_type"] != "other_directorship":
                 continue
             data = fact["data"]
-            target = by_name.get(norm_company(data["company_name"]))
+            target, loose = _target(data["company_name"], by_name)
             if target is None or target == reporter:
                 continue
             base = dict(person_name=data["person_name"], din=data.get("din"), reported_by=reporter,
@@ -97,7 +113,8 @@ def check_directorships(extracted_dir: Path, companies: list[Company]) -> list[D
                                                 detail=f"no director with this DIN/name in {target}'s own extraction"))
                 continue
 
-            detail = f"{target} lists {match['person_name']!r} (DIN {match.get('din') or '?'})"
+            detail = f"{target} lists {match['person_name']!r} (DIN {match.get('din') or '?'})" + (
+                f"; company name matched loosely ({data['company_name']!r})" if loose else "")
             claimed = _independence(data.get("category"))
             if claimed is not None and claimed != match.get("is_independent"):
                 detail += f", is_independent={match.get('is_independent')}"
