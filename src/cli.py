@@ -122,6 +122,7 @@ def extract(
         extract_company,
         keep_previous_if_fewer,
         load_facts,
+        load_merge_overrides,
         save_facts,
     )
     from src.eval.sample_facts import export_sample
@@ -150,12 +151,13 @@ def extract(
     out_dir.mkdir(parents=True, exist_ok=True)
     combined = ExtractionResult()
     regressions: list[str] = []
+    overrides = load_merge_overrides(settings.data_dir / "overrides" / "merges.csv")
     try:
         for c in companies:
-            result = extract_company(c, settings.sections_dir, client)
+            result = extract_company(c, settings.sections_dir, client, overrides)
             path = out_dir / f"{c.nse_symbol}.jsonl"
             previous = load_facts(path) if path.exists() else []
-            facts, flags = keep_previous_if_fewer(previous, result.facts, accept_fewer)
+            facts, flags = keep_previous_if_fewer(previous, result.facts, accept_fewer, result.explained_removals)
             regressions.extend(f"{c.nse_symbol}: {flag}" for flag in flags)
             save_facts(path, facts)
             (out_dir / f"{c.nse_symbol}.run.json").write_text(json.dumps({
@@ -163,6 +165,8 @@ def extract(
                 "dropped": [asdict(d) for d in result.dropped],
                 "merges": result.merges,
                 "ambiguous": result.ambiguous,
+                "notes": result.notes,
+                "explained_removals": [[*k, v] for k, v in result.explained_removals.items() if v],
                 "regressions": flags,
             }, ensure_ascii=False, indent=2), encoding="utf-8")
             combined.facts.extend(facts)
@@ -170,6 +174,7 @@ def extract(
             combined.calls_used += result.calls_used
             combined.merges.extend(f"{c.nse_symbol}: {m}" for m in result.merges)
             combined.ambiguous.extend(f"{c.nse_symbol}: {a}" for a in result.ambiguous)
+            combined.notes.extend(f"{c.nse_symbol}: {n}" for n in result.notes)
     except (DailyLimitReached, APIError, LLMError) as exc:
         # Companies not reached keep their previous facts file untouched.
         typer.secho(f"\nStopped early: {exc}", fg=typer.colors.YELLOW)
@@ -180,7 +185,7 @@ def extract(
         typer.echo(f"  {fact_type:<15} {method:<6} {n}")
     typer.echo(f"  total: {len(combined.facts)}")
 
-    typer.secho(f"\nDropped by the evidence-quote check: {len(combined.dropped)}", bold=True)
+    typer.secho(f"\nDropped (evidence check or a rule; all reasons in <SYMBOL>.run.json): {len(combined.dropped)}", bold=True)
     for d in combined.dropped[:10]:
         typer.echo(f"  [{d.fact_type}/{d.section_type}] {d.reason}: {d.evidence[:100]!r}")
 
@@ -191,8 +196,12 @@ def extract(
         typer.secho(f"\nPossible matches NOT merged: {len(combined.ambiguous)}", bold=True)
         for a in combined.ambiguous:
             typer.echo(f"  {a}")
+    if combined.notes:
+        typer.secho(f"\nDirector checks: {len(combined.notes)}", bold=True)
+        for n in combined.notes:
+            typer.echo(f"  {n}")
     if regressions:
-        typer.secho(f"\nFewer facts than the previous run: {len(regressions)}", bold=True, fg=typer.colors.YELLOW)
+        typer.secho(f"\nFewer facts or changed key fields vs the previous run: {len(regressions)}", bold=True, fg=typer.colors.YELLOW)
         for r in regressions:
             typer.secho(f"  {r}", fg=typer.colors.YELLOW)
 
@@ -224,6 +233,23 @@ def check_directorships_cmd() -> None:
                     f"{c.target}'s board ({c.category or 'no category'})", fg=colour)
         if c.detail:
             typer.echo(f"      {c.detail}")
+
+
+@app.command("check-dins")
+def check_dins_cmd(
+    apply: bool = typer.Option(True, help="Record each resolution on the director fact (din_resolution)."),
+) -> None:
+    """Resolve DINs a company's certificate contradicts, using what the pilot reports print."""
+    from src.eval.din_check import check_dins
+
+    settings = get_settings()
+    findings = check_dins(settings.data_dir / "extracted", settings.sections_dir, _companies(None), apply)
+    typer.secho(f"{len(findings)} director(s) with a DIN conflict", bold=True)
+    for f in findings:
+        typer.echo(f"  {f.company}: {f.person_name} table DIN {f.din}, conflict {f.conflict}")
+        typer.echo(f"      same report elsewhere: {dict(f.same_report) or 'none'}")
+        typer.echo(f"      other pilot reports: {f.other_reports or 'none'}")
+        typer.echo(f"      -> {f.resolved_din or 'unresolved'} ({f.basis})")
 
 
 @app.command()

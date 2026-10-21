@@ -104,7 +104,7 @@ def test_dedupe_collapses_same_director_across_groups():
 
 def test_directors_use_the_table_and_skip_the_llm(tmp_path):
     table = [["N Chandrasekaran (Chairman) DIN 00121863", "Non-Independent, Non-Executive"]]
-    cg = _section("corporate_governance", [_page(10, "Board of Directors page text. No KMP here.", tables=[table])])
+    cg = _section("corporate_governance", [_page(10, "Board of Directors: number of Board meetings attended. N Chandrasekaran. No KMP here.", tables=[table])])
     sections_dir = write_sections(tmp_path, {"corporate_governance": cg})
 
     client, provider = make_client(tmp_path, responses={"Chief Executive Officer (CEO)": '{"kmp": []}'})
@@ -254,7 +254,7 @@ def test_table_directorships_become_facts_reported_by_this_company(tmp_path):
         ["Name of the Director and DIN", "Category", "Directorship in other listed entity (Category of Directorship)"],
         ["N Chandrasekaran (Chairman) DIN 00121863", "Non-Independent, Non-Executive", "1. Tata Steel Limited (N) 2. Tata Motors Limited (N)"],
     ]
-    cg = _section("corporate_governance", [_page(98, "Category of directorship held: (N) Non-Independent, Non-Executive Director", tables=[table])])
+    cg = _section("corporate_governance", [_page(98, "Number of Board Meetings attended N Chandrasekaran Category of directorship held: (N) Non-Independent, Non-Executive Director", tables=[table])])
     sections_dir = write_sections(tmp_path, {"corporate_governance": cg})
     client, _ = make_client(tmp_path, responses={})
 
@@ -272,7 +272,7 @@ def test_table_directorships_become_facts_reported_by_this_company(tmp_path):
 
 
 def test_llm_directorships_are_dropped_when_the_company_name_is_not_in_the_text(tmp_path):
-    text = "Mr N Chandrasekaran DIN: 00121863 NINED (C) Tata Chemicals Limited (NINED)"
+    text = "Board meetings attended: Mr N Chandrasekaran DIN: 00121863 NINED (C) Tata Chemicals Limited (NINED)"
     cg = _section("corporate_governance", [_page(236, text)])
     sections_dir = write_sections(tmp_path, {"corporate_governance": cg})
     directors = {"directors": [{

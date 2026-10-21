@@ -91,7 +91,10 @@ def auditor_prompt(pages: list[dict], audit_type: str) -> str:
         "`firm_registration_no` only with the firm's registration number, i.e. a value "
         "labelled 'Firm Registration No.', 'Firm's Registration No.' or 'FRN'. Never put a "
         "peer review certificate number ('PR No.'), FCS/ACS/membership number, CP number or "
-        "UDIN there; if no firm registration number is stated, leave it null.\n\n"
+        "UDIN there; if no firm registration number is stated, leave it null. For "
+        "`evidence`, quote the signature block as one continuous piece of text from the "
+        "firm's (or person's) name through the 'Firm Registration No.' line when there is "
+        "one, so the quote contains the registration number.\n\n"
         f"Report excerpt:\n{_paged_text(pages)}"
     )
 
@@ -104,7 +107,11 @@ def related_party_prompt(pages: list[dict]) -> str:
         "'sale of goods', 'remuneration', 'rent paid'). Give the amount in INR crore if "
         "stated (convert if given in lakh or another unit, stating the converted crore "
         "figure). If a party has several kinds of transactions, list each as a separate item. "
-        "Go through every row and column of any transactions table; when it gives both the "
-        "current and the previous year, use the current year (2023-24) figure.\n\n"
+        "Go through every row and column of any transactions table. Every amount must be "
+        "the current year's (FY2024, i.e. 2023-24 / year ended March 31, 2024) figure: when "
+        "a table or sentence gives both years, take the current-year column or figure, "
+        "never the previous year's. For `evidence`, quote a short continuous piece of text "
+        "that contains the amount exactly as printed (e.g. the party name or row label "
+        "followed by its figures); a fact without its amount in the quote is discarded.\n\n"
         f"Report excerpt:\n{_paged_text(pages)}"
     )

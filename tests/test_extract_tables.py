@@ -21,6 +21,9 @@ def test_parses_a_director_row_with_role_and_din():
         "is_independent": False,
         "is_executive": False,
         "status": "current",
+        "appointed_on": None,
+        "ceased_on": None,
+        "footnote": None,
         "other_listed_directorships": [],
         "evidence": "N Chandrasekaran (Chairman) DIN 00121863 | Non-Independent, Non-Executive",
     }

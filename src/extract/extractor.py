@@ -11,9 +11,12 @@ before each LLM call, and duplicate facts across groups are merged afterwards.
 
 from __future__ import annotations
 
+import csv
+import datetime
 import json
 import logging
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -33,7 +36,13 @@ from src.extract.schema import (
     RelatedPartyFactList,
     SubsidiaryFactList,
 )
-from src.extract.tables import parse_directors_table, parse_subsidiaries_table
+from src.extract.tables import (
+    CHANGE_DATE_RE,
+    parse_date,
+    parse_din_certificate,
+    parse_directors_table,
+    parse_subsidiaries_table,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +107,8 @@ class ExtractionResult:
     dropped: list[DroppedFact] = field(default_factory=list)
     calls_used: int = 0
     merges: list[str] = field(default_factory=list)  # director copies merged, one line each
+    notes: list[str] = field(default_factory=list)  # DIN conflicts, dates found in text, FY2024 removals
+    explained_removals: dict = field(default_factory=dict)  # (fact_type, section_type) -> count
     ambiguous: list[str] = field(default_factory=list)  # possible same-person pairs left unmerged
 
 
@@ -294,13 +305,24 @@ def _merge_directors(facts: list[Fact]) -> tuple[list[Fact], list[str], list[str
     that only matches on initials ("Om Prakash Bhatt" / "O P Bhatt"), are listed instead.
     The dropped copy's `other_directorship` facts are re-pointed at the kept director."""
     directors = [f for f in facts if f.fact_type == "director"]
-    by_name: dict[str, dict[str, Fact]] = {}
-    for f in directors:
-        if f.data.get("din"):
-            by_name.setdefault(_norm_person(f.data["person_name"]), {})[f.data["din"]] = f
-
     merged_into: dict[int, Fact] = {}
     merges, ambiguous = [], []
+    # Same DIN under two spellings (e.g. a DIN filled from the certificate): one person.
+    first_with_din: dict[str, Fact] = {}
+    for f in directors:
+        din = f.data.get("din")
+        if not din:
+            continue
+        if din in first_with_din:
+            target = first_with_din[din]
+            merged_into[id(f)] = target
+            merges.append(f"{f.data['person_name']!r} (p.{f.page}) -> {target.data['person_name']!r} (same DIN {din})")
+        else:
+            first_with_din[din] = f
+    by_name: dict[str, dict[str, Fact]] = {}
+    for f in first_with_din.values():
+        by_name.setdefault(_norm_person(f.data["person_name"]), {})[f.data["din"]] = f
+
     first_without_din: dict[str, Fact] = {}
     for f in directors:
         if f.data.get("din"):
@@ -327,30 +349,267 @@ def _merge_directors(facts: list[Fact]) -> tuple[list[Fact], list[str], list[str
         merges.append(f"{f.data['person_name']!r} (p.{f.page}, no DIN) -> {target.data['person_name']!r} "
                       f"(DIN {target.data.get('din') or 'none'}, p.{target.page})")
 
+    return _fold(facts, merged_into), merges, ambiguous
+
+
+def _fold(facts: list[Fact], merged_into: dict[int, Fact]) -> list[Fact]:
+    """Drop the director copies keyed (by `id`) in `merged_into`, re-pointing each copy's
+    other_directorship facts (linked by person_name + din) at the director it merged into."""
     if not merged_into:
-        return facts, merges, ambiguous
-    # A director's other_directorship facts point at it by (person_name, din).
-    repoint = {(f.data["person_name"], None): merged_into[id(f)] for f in directors if id(f) in merged_into}
+        return facts
+    repoint = {(f.data["person_name"], f.data.get("din")): target
+               for f in facts if (target := merged_into.get(id(f))) is not None}
     kept = []
     for f in facts:
         if id(f) in merged_into:
             continue
         target = repoint.get((f.data.get("person_name"), f.data.get("din"))) if f.fact_type == "other_directorship" else None
         if target is not None:
-            f = Fact(f.fact_type, f.method, f.company, f.nse_symbol, f.section_type, f.page, f.fy,
-                     {**f.data, "person_name": target.data["person_name"], "din": target.data.get("din")}, f.evidence)
+            f = _with(f, person_name=target.data["person_name"], din=target.data.get("din"))
         kept.append(f)
-    return _dedupe(kept), merges, ambiguous
+    return _dedupe(kept)
+
+
+def _with(f: Fact, **changes) -> Fact:
+    """A copy of `f` with some `data` fields changed (Fact is frozen)."""
+    return Fact(f.fact_type, f.method, f.company, f.nse_symbol, f.section_type, f.page, f.fy, {**f.data, **changes}, f.evidence)
+
+
+def load_merge_overrides(path: Path) -> list[dict]:
+    """data/overrides/merges.csv: hand-confirmed merges the automatic rules won't make
+    (columns nse_symbol, fact_type, from_name, to_din, note). Missing file -> none."""
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8", newline="") as fh:
+        return [row for row in csv.DictReader(fh) if row.get("nse_symbol")]
+
+
+def _apply_merge_overrides(facts: list[Fact], overrides: list[dict], symbol: str) -> tuple[list[Fact], list[str]]:
+    """Merge each override's `from_name` director into the director with `to_din`."""
+    merged_into: dict[int, Fact] = {}
+    log = []
+    directors = [f for f in facts if f.fact_type == "director"]
+    for o in overrides:
+        if o["nse_symbol"] != symbol or o.get("fact_type", "director") != "director":
+            continue
+        target = next((f for f in directors if f.data.get("din") == o["to_din"]), None)
+        copies = [f for f in directors if f is not target and _norm_person(f.data["person_name"]) == _norm_person(o["from_name"])]
+        if target is None or not copies:
+            log.append(f"override {o['from_name']!r} -> DIN {o['to_din']}: nothing to merge "
+                       f"({'no director with that DIN' if target is None else 'no such name'})")
+            continue
+        for c in copies:
+            merged_into[id(c)] = target
+            log.append(f"override: {c.data['person_name']!r} (p.{c.page}, DIN {c.data.get('din') or 'none'}) -> "
+                       f"{target.data['person_name']!r} (DIN {o['to_din']}) [{o.get('note', '')}]")
+    return _fold(facts, merged_into), log
+
+
+# ---------------------------------------------------------------- FY2024 board membership
+
+# Pages that list the year's board: composition/attendance tables (board or committee) and
+# the certificate of non-disqualification. A name found only elsewhere (e.g. a table of
+# past general-meeting resolutions) isn't evidence of FY2024 board membership.
+BOARD_PAGE_RE = re.compile(
+    r"board meetings?\s+(?:held|attended)|attended\s+(?:the\s+)?last\s+agm|attendance\s+(?:at|of|record|details)"
+    r"|meetings?\s+attended|number of (?:board )?meetings|disqualif",
+    re.I,
+)
+FY_END = datetime.date(2024, 3, 31)
+
+
+def _norm_text(text: str) -> str:
+    return " " + _norm_person(" ".join(text.split())) + " "
+
+
+def _director_certificate(pages: list[dict]) -> list[dict]:
+    rows = []
+    for p in pages:
+        rows.extend({**r, "page": p["page"]} for r in parse_din_certificate(p["text"]))
+    return rows
+
+
+def _fill_dins_from_certificate(facts: list[Fact], pages: list[dict]) -> tuple[list[Fact], list[str]]:
+    """A director without a DIN gets it from the certificate table when exactly one row there
+    has the same normalized name (Infosys prints most DINs only there). The director's
+    other_directorship facts get the DIN too, so they stay linked to it."""
+    cert_by_name: dict[str, list[dict]] = {}
+    for r in _director_certificate(pages):
+        cert_by_name.setdefault(_norm_person(r["name"]), []).append(r)
+    filled: dict[str, str] = {}  # person_name -> DIN
+    notes, out = [], []
+    for f in facts:
+        if f.fact_type == "director" and not f.data.get("din"):
+            matches = cert_by_name.get(_norm_person(f.data["person_name"]), [])
+            if len({m["din"] for m in matches}) == 1:
+                f = _with(f, din=matches[0]["din"], din_source=f"certificate p.{matches[0]['page']}")
+                filled[f.data["person_name"]] = f.data["din"]
+                notes.append(f"DIN filled from certificate: {f.data['person_name']} -> {f.data['din']} "
+                             f"(p.{matches[0]['page']})")
+        out.append(f)
+    out = [_with(f, din=filled[f.data["person_name"]])
+           if f.fact_type == "other_directorship" and not f.data.get("din") and f.data.get("person_name") in filled
+           else f for f in out]
+    return out, notes
+
+
+def _change_date_in_text(director: Fact, pages: list[dict]) -> str | None:
+    """For an LLM director fact marked appointed/ceased without a date: the first date after
+    a mention of the person (name or DIN) in a sentence that says they were appointed (or
+    ceased). Used only when every such mention agrees on the date."""
+    keyword = r"appoint" if director.data.get("status") == "appointed" else r"ceas|resign|retire|complet"
+    needles = [re.escape(director.data["person_name"])] + ([re.escape(director.data["din"])] if director.data.get("din") else [])
+    found = set()
+    for p in pages:
+        flat = " ".join(p["text"].split())
+        for m in re.finditer("|".join(needles), flat):
+            window = flat[max(0, m.start() - 200): m.end() + 300]
+            date = CHANGE_DATE_RE.search(flat, m.end(), m.end() + 300)
+            if date and re.search(keyword, window, re.I):
+                found.add(date.group(1))
+    return found.pop() if len(found) == 1 else None
+
+
+def _finish_directors(facts: list[Fact], pages: list[dict]) -> tuple[list[Fact], list[str], list[DroppedFact]]:
+    """Director clean-up that needs the whole governance section, after merging:
+
+    - mark a DIN the certificate contradicts (`din_conflict`): TCS's certificate gives Al-Noor
+      Ramji the DIN its own director table gives Don Callahan;
+    - give an LLM director marked appointed/ceased the date the text states for it, and flag
+      appointments after the year end (`after_fy_end`), so FY2024 board questions skip them;
+    - drop anyone not named on a board/attendance/certificate page (or appointed after the year
+      end): a name only in, say, a list of past AGM resolutions isn't an FY2024 director.
+    """
+    notes: list[str] = []
+    dropped: list[DroppedFact] = []
+    cert = _director_certificate(pages)
+    cert_by_name: dict[str, list[dict]] = {}
+    for r in cert:
+        cert_by_name.setdefault(_norm_person(r["name"]), []).append(r)
+    cert_by_din = {r["din"]: r for r in cert}
+    names_by_din = {}
+    for f in facts:
+        if f.fact_type == "director" and f.data.get("din"):
+            names_by_din[f.data["din"]] = _norm_person(f.data["person_name"])
+
+    out = []
+    for f in facts:
+        if f.fact_type != "director":
+            out.append(f)
+            continue
+        key = _norm_person(f.data["person_name"])
+        matches = cert_by_name.get(key, [])
+        din = f.data.get("din")
+        conflict = {}
+        for r in matches:
+            if din and r["din"] != din:
+                conflict = {"certificate_din": r["din"], "certificate_page": r["page"]}
+        r = cert_by_din.get(din) if din else None
+        if r and _norm_person(r["name"]) != key and _norm_person(r["name"]) in names_by_din.values():
+            conflict = {"certificate_name_for_this_din": r["name"], "certificate_page": r["page"]}
+        if conflict:
+            f = _with(f, din_conflict=conflict)
+            notes.append(f"DIN conflict: {f.data['person_name']} {din} vs certificate {conflict}")
+        if f.method == "llm" and f.data.get("status") in ("appointed", "ceased"):
+            field_name = "appointed_on" if f.data["status"] == "appointed" else "ceased_on"
+            if not f.data.get(field_name):
+                date = _change_date_in_text(f, pages)
+                if date:
+                    f = _with(f, **{field_name: date})
+                    notes.append(f"{field_name} from text: {f.data['person_name']} {date}")
+        appointed = parse_date(f.data.get("appointed_on"))
+        f = _with(f, after_fy_end=bool(appointed and appointed > FY_END))
+        out.append(f)
+
+    board_text = [_norm_text(p["text"]) for p in pages if BOARD_PAGE_RE.search(" ".join(p["text"].split()))]
+    kept = []
+    removed_people = set()
+    for f in out:
+        if f.fact_type == "director" and not f.data["after_fy_end"]:
+            on_board_page = any(f" {_norm_person(f.data['person_name'])} " in t for t in board_text) or (
+                f.data.get("din") and (f.data["din"] in cert_by_din or any(f.data["din"] in t for t in board_text))
+            )
+            if not on_board_page:
+                removed_people.add((f.data["person_name"], f.data.get("din")))
+                dropped.append(DroppedFact("director", f.section_type, "not on an FY2024 board/attendance table or certificate",
+                                           f.evidence, dict(f.data)))
+                notes.append(f"not an FY2024 director (no board/attendance/certificate mention): "
+                             f"{f.data['person_name']} {f.data.get('din') or ''} p.{f.page}")
+                continue
+        kept.append(f)
+    kept = [f for f in kept if not (f.fact_type == "other_directorship"
+                                   and (f.data.get("person_name"), f.data.get("din")) in removed_people)]
+    return kept, notes, dropped
+
+
+# Fields whose loss or change between runs must be flagged, and how a fact is recognised
+# across runs (its identity without those fields).
+KEY_FIELDS = {
+    "director": ("din", "status", "appointed_on", "ceased_on"),
+    "kmp": ("status", "appointed_on", "ceased_on"),
+    "auditor": ("firm_registration_no",),
+    "related_party": ("amount_inr_crore",),
+    "subsidiary": ("stake_pct",),
+}
+
+
+def _identity(f: Fact) -> tuple:
+    d = f.data
+    if f.fact_type == "director":
+        return (f.fact_type, _norm_person(d.get("person_name", "")))
+    if f.fact_type == "kmp":
+        return (f.fact_type, _norm_person(d.get("person_name", "")), d.get("role"))
+    if f.fact_type == "auditor":
+        return (f.fact_type, _norm_ws(d.get("firm_name", "")).lower(), d.get("audit_type"))
+    if f.fact_type == "related_party":
+        return (f.fact_type, _norm_ws(d.get("party_name", "")).lower(), _norm_ws(d.get("nature", "")).lower())
+    if f.fact_type == "subsidiary":
+        return (f.fact_type, _norm_ws(d.get("subsidiary_name", "")).lower(), (d.get("country") or "").lower())
+    return (f.fact_type,)
+
+
+def field_changes(previous: list[Fact], new: list[Fact]) -> list[str]:
+    """Key fields (DIN, FRN, amount, dates, status, stake) that were filled in the previous
+    run and are now empty or different, for facts recognisable in both runs. A fact identity
+    that appears more than once on either side (e.g. one party with two amounts) is skipped:
+    there's no telling which old value corresponds to which new one."""
+    def index(facts):
+        seen: dict[tuple, list[Fact]] = {}
+        for f in facts:
+            if f.fact_type in KEY_FIELDS:
+                seen.setdefault(_identity(f), []).append(f)
+        return {k: v[0] for k, v in seen.items() if len(v) == 1}
+
+    old, fresh = index(previous), index(new)
+    flags = []
+    for key, before in old.items():
+        after = fresh.get(key)
+        if after is None:
+            continue
+        for name in KEY_FIELDS[before.fact_type]:
+            was, now = before.data.get(name), after.data.get(name)
+            if was in (None, "") or was == now:
+                continue
+            label = " / ".join(str(k) for k in key[1:])
+            change = "now empty" if now in (None, "") else f"now {now!r}"
+            flags.append(f"{before.fact_type} {label}: {name} was {was!r}, {change}")
+    return flags
 
 
 def keep_previous_if_fewer(
-    previous: list[Fact], new: list[Fact], accept_fewer: bool = False
+    previous: list[Fact],
+    new: list[Fact],
+    accept_fewer: bool = False,
+    explained: dict[tuple[str, str], int] | None = None,
 ) -> tuple[list[Fact], list[str]]:
     """Guard against silent regressions between runs, per (fact type, section): if the new
     run found fewer facts than the previous one did, keep the previous facts for that part
     and flag it. Both sides have their director copies merged first, so a merge that
-    legitimately shrinks the director count isn't mistaken for a regression. With
-    `accept_fewer`, the new facts are kept anyway, but the drop is still flagged."""
+    legitimately shrinks the director count isn't mistaken for a regression; `explained`
+    counts facts the new run removed by a logged rule (FY2024 board rule, repeat block,
+    override merges), which also don't count as missing. With `accept_fewer`, the new facts
+    are kept anyway, but the drop is still flagged. Key-field changes are flagged too (see
+    `field_changes`)."""
     previous, _, _ = _merge_directors(previous)
 
     def groups(facts: list[Fact]) -> dict[tuple[str, str], list[Fact]]:
@@ -360,16 +619,68 @@ def keep_previous_if_fewer(
         return out
 
     old_groups, new_groups = groups(previous), groups(new)
-    kept, flags = [], []
+    flags = field_changes(previous, new)
+    kept = []
     for key in list(new_groups) + [k for k in old_groups if k not in new_groups]:
         old, fresh = old_groups.get(key, []), new_groups.get(key, [])
-        if len(fresh) < len(old):
+        if len(fresh) + (explained or {}).get(key, 0) < len(old):
             action = "kept the new facts anyway (--accept-fewer)" if accept_fewer else "kept the previous facts"
             flags.append(f"{key[0]} / {key[1]}: new run found {len(fresh)}, previous run {len(old)}; {action}")
             kept.extend(fresh if accept_fewer else old)
         else:
             kept.extend(fresh)
     return kept, flags
+
+
+# Tata Motors' AOC-1 repeats some subsidiaries in a consolidated summary after the table.
+REPEAT_BLOCK_RE = re.compile(r"Details of Direct Subsidiaries,? on consolidated basis", re.I)
+
+
+def _drop_repeat_block(facts: list[Fact], pages: list[dict]) -> tuple[list[Fact], list[DroppedFact]]:
+    """Drop subsidiary facts whose name occurs on its page only after a summary block
+    heading that repeats rows already listed above it."""
+    texts = {p["page"]: _norm_ws(p["text"]) for p in pages}
+    kept, dropped = [], []
+    for f in facts:
+        text = texts.get(f.page, "")
+        block = REPEAT_BLOCK_RE.search(text)
+        at = text.find(_norm_ws(f.evidence))
+        if block and at >= block.start():
+            dropped.append(DroppedFact(f.fact_type, f.section_type, "in a summary block repeating rows listed above it",
+                                       f.evidence, f.data))
+        else:
+            kept.append(f)
+    return kept, dropped
+
+
+NUMBER_RE = re.compile(r"\(?-?\d[\d,]*(?:\.\d+)?\)?")
+
+
+def _amount_in_quote(amount: float, evidence: str) -> bool:
+    """Whether `amount` (crore) is printed in the quote: as is, or in rupees or lakh that
+    convert to it (the prompt allows converting those)."""
+    for token in NUMBER_RE.findall(evidence):
+        try:
+            n = abs(float(token.strip("()").replace(",", "")))
+        except ValueError:
+            continue
+        for value in (n, n / 1e7, n / 100):
+            if abs(value - abs(amount)) <= max(0.005, abs(amount) * 1e-6):
+                return True
+    return False
+
+
+def _check_amounts_quoted(facts: list[Fact]) -> tuple[list[Fact], list[DroppedFact]]:
+    """Related-party facts must quote their amount: one whose amount isn't in its evidence
+    quote is dropped, since nothing then ties the number to the report."""
+    kept, dropped = [], []
+    for f in facts:
+        amount = f.data.get("amount_inr_crore")
+        if amount is not None and not _amount_in_quote(amount, f.evidence):
+            dropped.append(DroppedFact(f.fact_type, f.section_type, "amount not in the evidence quote", f.evidence, f.data))
+        else:
+            kept.append(f)
+    return kept, dropped
 
 
 def _directorship_facts(director: Fact, entries: list[dict], company: Company) -> list[Fact]:
@@ -406,17 +717,22 @@ def _checked_directorships(director: Fact, pages: list[dict]) -> tuple[list[dict
     return kept, dropped
 
 
-def extract_company(company: Company, sections_dir: Path, client: LLMClient) -> ExtractionResult:
+def extract_company(
+    company: Company, sections_dir: Path, client: LLMClient, merge_overrides: list[dict] | None = None
+) -> ExtractionResult:
     """Extract every fact type for one company. Section JSONs missing from `sections_dir`
-    are skipped silently (nothing to extract)."""
+    are skipped silently (nothing to extract). `merge_overrides` are hand-confirmed director
+    merges (see `load_merge_overrides`)."""
     result = ExtractionResult()
 
     cg = _load_section(sections_dir, company.nse_symbol, "corporate_governance")
     if cg:
         table_facts = []
-        for page in cg["pages"]:
+        for i, page in enumerate(cg["pages"]):
+            # TCS prints the director table's footnotes on the following page.
+            footnote_text = page["text"] + "\n" + (cg["pages"][i + 1]["text"] if i + 1 < len(cg["pages"]) else "")
             for table in page["tables"]:
-                for row in parse_directors_table(table, page["text"]):
+                for row in parse_directors_table(table, page["text"], footnote_text):
                     evidence = row.pop("evidence")
                     others = row.pop("other_listed_directorships")
                     director = Fact("director", "table", company.name, company.nse_symbol, "corporate_governance", page["page"], FY, row, evidence)
@@ -462,6 +778,8 @@ def extract_company(company: Company, sections_dir: Path, client: LLMClient) -> 
                 client, aoc1["pages"], subsidiary_prompt, (SubsidiaryFactList, "subsidiaries"),
                 "subsidiary", "subsidiaries_aoc1", company, "extract.subsidiaries",
             )
+            facts, repeats = _drop_repeat_block(facts, aoc1["pages"])
+            dropped.extend(repeats)
             result.facts.extend(facts)
             result.dropped.extend(dropped)
             result.calls_used += calls
@@ -485,9 +803,30 @@ def extract_company(company: Company, sections_dir: Path, client: LLMClient) -> 
             client, rpt["pages"], related_party_prompt, (RelatedPartyFactList, "related_party_transactions"),
             "related_party", "related_party", company, "extract.related_party",
         )
+        facts, unquoted = _check_amounts_quoted(facts)
+        dropped.extend(unquoted)
         result.facts.extend(facts)
         result.dropped.extend(dropped)
         result.calls_used += calls
 
-    result.facts, result.merges, result.ambiguous = _merge_directors(_dedupe(result.facts))
+    facts = _dedupe(result.facts)
+    cg_pages = cg["pages"] if cg else []
+    facts, filled = _fill_dins_from_certificate(facts, cg_pages)
+    facts, result.merges, result.ambiguous = _merge_directors(facts)
+    others_before = sum(f.fact_type == "other_directorship" for f in facts)
+    facts, override_log = _apply_merge_overrides(facts, merge_overrides or [], company.nse_symbol)
+    facts, notes, not_fy = _finish_directors(facts, cg_pages)
+    result.facts = facts
+    # Removals by a logged rule the previous run didn't apply, so the regression guard
+    # doesn't mistake them for facts the new run missed.
+    same_din = sum("(same DIN" in m for m in result.merges)
+    explained = Counter({("director", "corporate_governance"): same_din + len(override_log) + len(not_fy)})
+    explained[("other_directorship", "corporate_governance")] = others_before - sum(
+        f.fact_type == "other_directorship" for f in facts)
+    explained[("subsidiary", "subsidiaries_aoc1")] = sum(
+        d.reason.startswith("in a summary block") for d in result.dropped)
+    result.explained_removals = dict(explained)
+    result.merges = filled + result.merges + override_log
+    result.notes = notes
+    result.dropped.extend(not_fy)
     return result
