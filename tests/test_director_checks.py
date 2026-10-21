@@ -86,11 +86,11 @@ def test_director_table_footnotes_set_status_and_dates():
 
 
 def test_certificate_name_before_or_after_the_din():
-    assert parse_din_certificate(CERTIFICATE)[2] == {"name": "Helene Auriol Potier", "din": "10166891"}
+    assert parse_din_certificate(CERTIFICATE)[2] == {"name": "Helene Auriol Potier", "din": "10166891", "appointed_on": "May 26, 2023"}
     din_first = "\n".join(["disqualification", "1", "00121863", "Mr. Chandrasekaran Natarajan", "03/07/2017",
                            "2", "00161853", "Mr. Siraj Azmat Chaudhry", "03/07/2017",
                            "3", "00043265", "Ms. Shikha Sanjaya Sharma", "07/05/2019"])
-    assert parse_din_certificate(din_first)[0] == {"name": "Mr. Chandrasekaran Natarajan", "din": "00121863"}
+    assert parse_din_certificate(din_first)[0] == {"name": "Mr. Chandrasekaran Natarajan", "din": "00121863", "appointed_on": "03/07/2017"}
     assert parse_din_certificate("A page about something else\n00121863\nN Chandrasekaran") == []
 
 
@@ -215,3 +215,22 @@ def test_explained_removals_are_not_regressions():
     assert [f.data["person_name"] for f in kept] == ["N Chandrasekaran"] and flags == []
     kept, flags = keep_previous_if_fewer(previous, new)
     assert len(kept) == 2 and len(flags) == 1
+
+
+def test_footnote_marker_glued_to_a_name_still_counts_as_on_the_board_page():
+    page = _page(86, "Attendance of directors during fiscal 2024 Uri Levine(1) NA NA 1 1 100 Bobby Parikh 6 6 100")
+    facts = [_director("Uri Levine", status="ceased", page=85)]
+    kept, _, dropped = _finish_directors(facts, [page])
+    assert [f.data["person_name"] for f in kept] == ["Uri Levine"] and dropped == []
+
+
+def test_appointment_date_comes_from_the_certificate_not_a_neighbouring_footnote():
+    attendance = _page(96, "Meetings attended: Uri Levine(1) NA 1 1 100 Helene Auriol Potier(2) NA 3 3 100 "
+                           "(1) Ceased to be a member of the Committee due to retirement effective April 19, 2023 "
+                           "(2) Appointed as a member of the Committee")
+    facts = [_director("Helene Auriol Potier", "10166891", status="appointed", page=96),
+             _director("Uri Levine", status="ceased", page=96)]
+    kept, notes, _ = _finish_directors(facts, [attendance, CERT_PAGE])
+    helene, uri = kept
+    assert helene.data["appointed_on"] == "May 26, 2023"  # certificate, not April 19
+    assert uri.data["ceased_on"] == "April 19, 2023"

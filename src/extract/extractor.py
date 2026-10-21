@@ -419,7 +419,9 @@ FY_END = datetime.date(2024, 3, 31)
 
 
 def _norm_text(text: str) -> str:
-    return " " + _norm_person(" ".join(text.split())) + " "
+    """Page text for whole-word name lookups: punctuation and footnote markers become
+    spaces, so "Uri Levine(1)" still contains " uri levine "."""
+    return " " + " ".join(re.sub(r"[^\w\s-]", " ", _norm_person(" ".join(text.split()))).split()) + " "
 
 
 def _director_certificate(pages: list[dict]) -> list[dict]:
@@ -454,18 +456,24 @@ def _fill_dins_from_certificate(facts: list[Fact], pages: list[dict]) -> tuple[l
 
 
 def _change_date_in_text(director: Fact, pages: list[dict]) -> str | None:
-    """For an LLM director fact marked appointed/ceased without a date: the first date after
-    a mention of the person (name or DIN) in a sentence that says they were appointed (or
-    ceased). Used only when every such mention agrees on the date."""
-    keyword = r"appoint" if director.data.get("status") == "appointed" else r"ceas|resign|retire|complet"
+    """For an LLM director fact marked appointed/ceased without a date: the date stated with
+    a mention of the person (name or DIN), where the appointed/ceased wording sits right
+    before the name or between the name and the date ("appointed Mr Bharat Puri (DIN: ...)
+    ... commencing from May 15, 2024"). A date further along, past someone else's footnote
+    ("(1) Retired ... effective April 19, 2023" after another name), doesn't count. Used only
+    when every such mention agrees on the date."""
+    keyword = re.compile(r"appoint" if director.data.get("status") == "appointed" else r"ceas|resign|retire|complet", re.I)
     needles = [re.escape(director.data["person_name"])] + ([re.escape(director.data["din"])] if director.data.get("din") else [])
     found = set()
     for p in pages:
         flat = " ".join(p["text"].split())
         for m in re.finditer("|".join(needles), flat):
-            window = flat[max(0, m.start() - 200): m.end() + 300]
             date = CHANGE_DATE_RE.search(flat, m.end(), m.end() + 300)
-            if date and re.search(keyword, window, re.I):
+            if not date:
+                continue
+            between = flat[m.end(): date.start()]
+            before = flat[max(0, m.start() - 100): m.start()]
+            if keyword.search(between) or (keyword.search(before) and not re.search(r"\(\d\)", between)):
                 found.add(date.group(1))
     return found.pop() if len(found) == 1 else None
 
@@ -510,6 +518,14 @@ def _finish_directors(facts: list[Fact], pages: list[dict]) -> tuple[list[Fact],
         if conflict:
             f = _with(f, din_conflict=conflict)
             notes.append(f"DIN conflict: {f.data['person_name']} {din} vs certificate {conflict}")
+        if f.data.get("status") == "appointed" and not f.data.get("appointed_on"):
+            # The certificate prints each director's appointment date.
+            row = next((r for r in matches if r.get("appointed_on")), None) or (
+                cert_by_din.get(din) if din and cert_by_din.get(din, {}).get("appointed_on")
+                and _norm_person(cert_by_din[din]["name"]) not in (set(names_by_din.values()) - {key}) else None)
+            if row:
+                f = _with(f, appointed_on=row["appointed_on"])
+                notes.append(f"appointed_on from certificate: {f.data['person_name']} {row['appointed_on']} (p.{row['page']})")
         if f.method == "llm" and f.data.get("status") in ("appointed", "ceased"):
             field_name = "appointed_on" if f.data["status"] == "appointed" else "ceased_on"
             if not f.data.get(field_name):
@@ -526,7 +542,8 @@ def _finish_directors(facts: list[Fact], pages: list[dict]) -> tuple[list[Fact],
     removed_people = set()
     for f in out:
         if f.fact_type == "director" and not f.data["after_fy_end"]:
-            on_board_page = any(f" {_norm_person(f.data['person_name'])} " in t for t in board_text) or (
+            name = " ".join(re.sub(r"[^\w\s-]", " ", _norm_person(f.data["person_name"])).split())
+            on_board_page = any(f" {name} " in t for t in board_text) or (
                 f.data.get("din") and (f.data["din"] in cert_by_din or any(f.data["din"] in t for t in board_text))
             )
             if not on_board_page:

@@ -114,7 +114,8 @@ def parse_din_certificate(page_text: str) -> list[dict]:
     the board on March 31 as rows of serial no., name, DIN and appointment date, one value
     per line. Every pilot report has one. Returns [{"name", "din"}] in table order; empty
     if `page_text` isn't such a certificate. The name is the line next to the DIN that has
-    letters and no digits (before it in most reports, after it in Tata Consumer's)."""
+    letters and no digits (before it in most reports, after it in Tata Consumer's), and
+    `appointed_on` the date printed with it (the director's appointment to this board)."""
     if not re.search(r"disqualif", page_text, re.I):
         return []
     lines = [line.strip() for line in page_text.split("\n")]
@@ -127,7 +128,9 @@ def parse_din_certificate(page_text: str) -> list[dict]:
         after = lines[i + 1] if i + 1 < len(lines) else ""
         name = before if re.search(r"[A-Za-z]{2}", before) and not re.search(r"\d", before) else after
         if re.search(r"[A-Za-z]{2}", name):
-            rows.append({"name": name, "din": m.group(1)})
+            # The appointment date follows the DIN (or the name, when the name comes after it).
+            date = next((d for d in lines[i + 1: i + 3] if parse_date(d)), None)
+            rows.append({"name": name, "din": m.group(1), "appointed_on": date})
     return rows if len(rows) >= 3 else []
 
 

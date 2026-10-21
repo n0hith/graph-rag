@@ -235,6 +235,47 @@ def check_directorships_cmd() -> None:
             typer.echo(f"      {c.detail}")
 
 
+@app.command("sample-facts")
+def sample_facts_cmd(
+    size: int = typer.Option(50, help="How many facts to sample."),
+    seed: int = typer.Option(42, help="Random seed, so the same sample can be drawn again."),
+) -> None:
+    """Export a hand-check sample spread across companies and fact types, weighted towards
+    LLM facts and related-party amounts (data/extracted/sample_for_review.csv)."""
+    from collections import Counter
+
+    from src.eval.sample_facts import export_stratified_sample
+    from src.extract.extractor import load_facts
+
+    settings = get_settings()
+    out_dir = settings.data_dir / "extracted"
+    facts = [f for c in _companies(None) if (out_dir / f"{c.nse_symbol}.jsonl").exists()
+             for f in load_facts(out_dir / f"{c.nse_symbol}.jsonl")]
+    must_include = [
+        # New since the hand-check: TCS's p.299 table (Tata Sons group), and Infosys amounts.
+        (lambda f: f.nse_symbol == "TCS" and f.fact_type == "related_party" and f.page == 299, 4),
+        (lambda f: f.nse_symbol == "INFY" and f.fact_type == "related_party", 5),
+    ]
+    path = out_dir / "sample_for_review.csv"
+    sample = export_stratified_sample(facts, path, size, must_include, seed)
+    typer.secho(f"{len(sample)} facts written to {path}", bold=True)
+    for (symbol, fact_type, method), n in sorted(Counter((f.nse_symbol, f.fact_type, f.method) for f in sample).items()):
+        typer.echo(f"  {symbol:<11} {fact_type:<19} {method:<6} {n}")
+
+
+@app.command()
+def report(
+    gap: list[str] = typer.Option(None, "--gap", help="A known gap to list in the summary; repeat for several."),
+) -> None:
+    """Write reports/extraction_summary.md (tracked) from the latest extraction results."""
+    from src.eval.summary import write_summary
+
+    settings = get_settings()
+    path = write_summary(settings.data_dir.parent / "reports" / "extraction_summary.md",
+                         settings.data_dir / "extracted", settings.sections_dir, _companies(None), gap or [])
+    typer.echo(f"Wrote {path}")
+
+
 @app.command("check-dins")
 def check_dins_cmd(
     apply: bool = typer.Option(True, help="Record each resolution on the director fact (din_resolution)."),
