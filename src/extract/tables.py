@@ -117,6 +117,7 @@ def parse_subsidiaries_table(table: Table) -> list[dict]:
     Company", "% of Shareholding"), each column (from index 2 on) is one subsidiary."""
     name_row = next((r for r in table if r and r[0] and SUBSIDIARY_NAME_ROW_RE.search(r[0])), None)
     stake_row = next((r for r in table if r and r[0] and STAKE_ROW_RE.search(r[0])), None)
+    country_row = next((r for r in table if r and r[0] and r[0].strip().lower() == "country"), None)
     if not name_row or not stake_row:
         return []
     results = []
@@ -126,9 +127,11 @@ def parse_subsidiaries_table(table: Table) -> list[dict]:
             continue
         stake_text = " ".join((stake_row[col] or "").split()) if col < len(stake_row) else ""
         stake_match = STAKE_PCT_RE.search(stake_text)
+        country = " ".join((country_row[col] or "").split()) if country_row and col < len(country_row) else ""
         results.append(
             {
                 "subsidiary_name": name,
+                "country": country or None,
                 "cin": None,
                 "stake_pct": float(stake_match.group(1)) if stake_match else None,
                 "evidence": f"{name_row[0]}: {name}; {stake_row[0]}: {stake_text}",

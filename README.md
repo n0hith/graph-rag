@@ -219,6 +219,18 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
 
 ## Phase 3: fact extraction
 
+`extract` runs every LLM call at temperature 0, and writes `data/extracted/<SYMBOL>.jsonl`
+plus `<SYMBOL>.run.json` (calls used, facts dropped by the evidence check, director copies
+merged, possible matches left unmerged, regressions).
+
+- **No silent regressions:** if a re-run finds fewer facts of a type in a section than the
+  saved previous run, the previous facts are kept and the drop is printed. `--accept-fewer`
+  keeps the new result anyway (still printed).
+- **Director copies:** the same director often comes out once with a DIN and once without
+  (only some pages print it). A copy without a DIN is merged into the one director with the
+  same normalized name and a DIN; ambiguous cases (several DINs for a name, or a match on
+  initials only, like "Om Prakash Bhatt" / "O P Bhatt") are listed, not merged.
+
 ### Notes for Phase 4 (entity resolution)
 
 - **Renamed subsidiary:** "TCS Technology Solutions AG" was renamed "TCS Technology Solution

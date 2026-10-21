@@ -11,7 +11,18 @@ import pytest
 from src.ingest.companies import Company
 from src.llm.cache import LLMCache
 from src.llm.client import LLMClient, LLMRequest, LLMResponse
-from src.extract.extractor import Fact, _checked_frn, _dedupe, _find_page, estimate_calls, extract_company
+from src.extract.extractor import (
+    Fact,
+    _checked_frn,
+    _dedupe,
+    _find_page,
+    _merge_directors,
+    estimate_calls,
+    extract_company,
+    keep_previous_if_fewer,
+    load_facts,
+    save_facts,
+)
 
 COMPANY = Company("Example Ltd", "EX", "L00000MH0000PLC000000", "https://example.invalid/ar.pdf")
 
@@ -159,14 +170,34 @@ def test_kmp_captures_status_and_dates_like_directors(tmp_path):
 
 def test_page_groups_split_long_sections_into_several_calls(tmp_path):
     pages = [_page(n, f"page {n} text") for n in range(1, 14)]  # 13 pages, group size 6 -> 3 calls
-    rpt = _section("related_party", pages)
-    sections_dir = write_sections(tmp_path, {"related_party": rpt})
+    report = _section("auditor_report", pages)
+    sections_dir = write_sections(tmp_path, {"auditor_report": report})
     client, provider = make_client(tmp_path, responses={})
 
     result = extract_company(COMPANY, sections_dir, client)
 
     assert result.calls_used == 3
     assert len(provider.calls) == 3
+
+
+def test_dense_table_sections_use_smaller_page_groups(tmp_path):
+    pages = [_page(n, f"page {n} text") for n in range(1, 6)]  # 5 pages, group size 2 -> 3 calls
+    sections_dir = write_sections(tmp_path, {"related_party": _section("related_party", pages)})
+    client, _ = make_client(tmp_path, responses={})
+
+    assert extract_company(COMPANY, sections_dir, client).calls_used == 3
+    assert estimate_calls(sections_dir, COMPANY.nse_symbol)["related_party"] == 3
+
+
+def test_extraction_asks_for_temperature_zero(tmp_path):
+    sections_dir = write_sections(tmp_path, {"related_party": _section("related_party", [_page(1, "text")])})
+    client, provider = make_client(tmp_path, responses={})
+    seen = []
+    original = provider.generate
+    provider.generate = lambda request: (seen.append(request.temperature), original(request))[1]
+
+    extract_company(COMPANY, sections_dir, client)
+    assert seen == [0.0]
 
 
 def test_estimate_calls_counts_zero_for_a_table_backed_section(tmp_path):
@@ -260,3 +291,88 @@ def test_llm_directorships_are_dropped_when_the_company_name_is_not_in_the_text(
     assert [f.data["company_name"] for f in others] == ["Tata Chemicals Limited"]
     assert others[0].method == "llm"
     assert [d.evidence for d in result.dropped] == ["Invented Holdings Limited"]
+
+
+# ---------------------------------------------------------------- director merging
+
+
+def _director(name, din=None, page=1):
+    return Fact("director", "llm", "Example Ltd", "EX", "corporate_governance", page, "FY2023-24",
+                {"person_name": name, "din": din, "role": "", "is_independent": True, "is_executive": False,
+                 "status": "current"}, name)
+
+
+def test_director_without_din_merges_into_same_name_with_din():
+    facts = [_director("L. Krishnakumar", "00423616", page=317), _director("L Krishnakumar", page=290),
+             _director("Mr. L. Krishnakumar", page=291)]
+    kept, merges, ambiguous = _merge_directors(facts)
+    assert [(f.data["person_name"], f.data["din"]) for f in kept] == [("L. Krishnakumar", "00423616")]
+    assert len(merges) == 2 and "00423616" in merges[0]
+    assert ambiguous == []
+
+
+def test_same_name_copies_without_any_din_merge_into_each_other():
+    kept, merges, _ = _merge_directors([_director("David Crean", page=3), _director("David  Crean", page=5)])
+    assert [f.page for f in kept] == [3]
+    assert len(merges) == 1
+
+
+def test_ambiguous_names_are_listed_not_merged():
+    facts = [_director("A Kumar", "00000001"), _director("A. Kumar", "00000002"), _director("A Kumar", page=9),
+             _director("O P Bhatt", "00548091"), _director("Om Prakash Bhatt", page=7)]
+    kept, merges, ambiguous = _merge_directors(facts)
+    assert len(kept) == 5 and merges == []
+    assert any("several DINs" in a for a in ambiguous)
+    assert any("'Om Prakash Bhatt'" in a and "00548091" in a for a in ambiguous)
+
+
+def test_merged_copys_other_directorships_point_at_the_kept_director():
+    other = Fact("other_directorship", "llm", "Example Ltd", "EX", "corporate_governance", 2, "FY2023-24",
+                 {"person_name": "Mr N Chandrasekaran", "din": None, "company_name": "Tata Steel Limited",
+                  "category": None, "note": None, "reported_by": "EX"}, "Tata Steel Limited")
+    facts = [_director("N Chandrasekaran", "00121863"), _director("Mr N Chandrasekaran", page=2), other]
+    kept, _, _ = _merge_directors(facts)
+    [moved] = [f for f in kept if f.fact_type == "other_directorship"]
+    assert (moved.data["person_name"], moved.data["din"]) == ("N Chandrasekaran", "00121863")
+
+
+# ---------------------------------------------------------------- regression guard
+
+
+def _sub(name):
+    return Fact("subsidiary", "llm", "Example Ltd", "EX", "subsidiaries_aoc1", 1, "FY2023-24",
+                {"subsidiary_name": name, "cin": None, "stake_pct": 100.0}, name)
+
+
+def test_rerun_with_fewer_facts_keeps_the_previous_ones_and_flags_it():
+    previous = [_sub("A Ltd"), _sub("B Ltd"), _sub("C Ltd"), _director("X", "00000001")]
+    new = [_sub("A Ltd"), _director("X", "00000001"), _director("Y", "00000002")]
+    kept, flags = keep_previous_if_fewer(previous, new)
+    assert sorted(f.data.get("subsidiary_name", f.data.get("person_name")) for f in kept) == ["A Ltd", "B Ltd", "C Ltd", "X", "Y"]
+    assert flags == ["subsidiary / subsidiaries_aoc1: new run found 1, previous run 3; kept the previous facts"]
+
+
+def test_accept_fewer_keeps_the_new_facts_but_still_flags():
+    kept, flags = keep_previous_if_fewer([_sub("A Ltd"), _sub("B Ltd")], [_sub("A Ltd")], accept_fewer=True)
+    assert [f.data["subsidiary_name"] for f in kept] == ["A Ltd"]
+    assert len(flags) == 1
+
+
+def test_a_director_merge_is_not_mistaken_for_a_regression():
+    previous = [_director("L Krishnakumar", "00423616"), _director("L. Krishnakumar")]  # 2 before merging
+    new = [_director("L Krishnakumar", "00423616")]
+    kept, flags = keep_previous_if_fewer(previous, new)
+    assert flags == [] and len(kept) == 1
+
+
+def test_facts_round_trip_through_jsonl(tmp_path):
+    facts = [_sub("A Ltd"), _director("X", "00000001")]
+    save_facts(tmp_path / "EX.jsonl", facts)
+    assert load_facts(tmp_path / "EX.jsonl") == facts
+
+
+def test_same_name_subsidiaries_in_different_countries_are_both_kept():
+    def sub(country):
+        return Fact("subsidiary", "llm", "Example Ltd", "EX", "subsidiaries_aoc1", 1, "FY2023-24",
+                    {"subsidiary_name": "Infosys Consulting S.R.L.", "country": country, "cin": None, "stake_pct": 100.0}, "x")
+    assert [f.data["country"] for f in _dedupe([sub("Romania"), sub("Argentina"), sub("Romania")])] == ["Romania", "Argentina"]

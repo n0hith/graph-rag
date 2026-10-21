@@ -60,9 +60,9 @@ def test_parses_a_transposed_aoc1_subsidiary_table():
     ]
     rows = parse_subsidiaries_table(table)
     assert rows == [
-        {"subsidiary_name": "Example America Inc", "cin": None, "stake_pct": 100.0,
+        {"subsidiary_name": "Example America Inc", "country": "U.S.A.", "cin": None, "stake_pct": 100.0,
          "evidence": "Name of the Subsidiary Company: Example America Inc; % of Shareholding: 100%"},
-        {"subsidiary_name": "Example Canada Ltd", "cin": None, "stake_pct": 74.5,
+        {"subsidiary_name": "Example Canada Ltd", "country": "Canada", "cin": None, "stake_pct": 74.5,
          "evidence": "Name of the Subsidiary Company: Example Canada Ltd; % of Shareholding: 74.5%"},
     ]
 

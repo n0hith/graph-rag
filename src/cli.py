@@ -103,12 +103,27 @@ def sectionize(
 def extract(
     company: list[str] = typer.Option(None, "--company", "-c", help="NSE symbol; repeat for several. Default: all."),
     sample_size: int = typer.Option(20, help="How many facts to export to CSV for hand-checking."),
+    accept_fewer: bool = typer.Option(
+        False, help="Keep a re-run's results even where it found fewer facts than the previous run."
+    ),
 ) -> None:
-    """Extract facts from sectionized reports, with table parsing tried before the LLM."""
+    """Extract facts from sectionized reports, with table parsing tried before the LLM.
+
+    Where a re-run finds fewer facts of a type in a section than the saved previous run,
+    the previous facts are kept and the drop is flagged (unless --accept-fewer)."""
     import json
     from collections import Counter
 
-    from src.extract.extractor import ExtractionResult, estimate_calls, extract_company
+    from dataclasses import asdict
+
+    from src.extract.extractor import (
+        ExtractionResult,
+        estimate_calls,
+        extract_company,
+        keep_previous_if_fewer,
+        load_facts,
+        save_facts,
+    )
     from src.eval.sample_facts import export_sample
     from src.llm.client import UsageTracker
 
@@ -131,29 +146,33 @@ def extract(
         typer.secho(str(exc), fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    out_dir = settings.data_dir / "extracted"
+    out_dir.mkdir(parents=True, exist_ok=True)
     combined = ExtractionResult()
+    regressions: list[str] = []
     try:
         for c in companies:
             result = extract_company(c, settings.sections_dir, client)
-            combined.facts.extend(result.facts)
+            path = out_dir / f"{c.nse_symbol}.jsonl"
+            previous = load_facts(path) if path.exists() else []
+            facts, flags = keep_previous_if_fewer(previous, result.facts, accept_fewer)
+            regressions.extend(f"{c.nse_symbol}: {flag}" for flag in flags)
+            save_facts(path, facts)
+            (out_dir / f"{c.nse_symbol}.run.json").write_text(json.dumps({
+                "calls_used": result.calls_used,
+                "dropped": [asdict(d) for d in result.dropped],
+                "merges": result.merges,
+                "ambiguous": result.ambiguous,
+                "regressions": flags,
+            }, ensure_ascii=False, indent=2), encoding="utf-8")
+            combined.facts.extend(facts)
             combined.dropped.extend(result.dropped)
             combined.calls_used += result.calls_used
+            combined.merges.extend(f"{c.nse_symbol}: {m}" for m in result.merges)
+            combined.ambiguous.extend(f"{c.nse_symbol}: {a}" for a in result.ambiguous)
     except (DailyLimitReached, APIError, LLMError) as exc:
+        # Companies not reached keep their previous facts file untouched.
         typer.secho(f"\nStopped early: {exc}", fg=typer.colors.YELLOW)
-
-    out_dir = settings.data_dir / "extracted"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for c in companies:
-        facts_for_company = [f for f in combined.facts if f.nse_symbol == c.nse_symbol]
-        path = out_dir / f"{c.nse_symbol}.jsonl"
-        with path.open("w", encoding="utf-8") as fh:
-            for f in facts_for_company:
-                fh.write(json.dumps(
-                    {"fact_type": f.fact_type, "method": f.method, "company": f.company,
-                     "nse_symbol": f.nse_symbol, "section_type": f.section_type, "page": f.page,
-                     "fy": f.fy, "data": f.data, "evidence": f.evidence},
-                    ensure_ascii=False,
-                ) + "\n")
 
     by_type_method = Counter((f.fact_type, f.method) for f in combined.facts)
     typer.secho("\nFacts extracted:", bold=True)
@@ -164,6 +183,18 @@ def extract(
     typer.secho(f"\nDropped by the evidence-quote check: {len(combined.dropped)}", bold=True)
     for d in combined.dropped[:10]:
         typer.echo(f"  [{d.fact_type}/{d.section_type}] {d.reason}: {d.evidence[:100]!r}")
+
+    typer.secho(f"\nDirector copies merged: {len(combined.merges)}", bold=True)
+    for m in combined.merges:
+        typer.echo(f"  {m}")
+    if combined.ambiguous:
+        typer.secho(f"\nPossible matches NOT merged: {len(combined.ambiguous)}", bold=True)
+        for a in combined.ambiguous:
+            typer.echo(f"  {a}")
+    if regressions:
+        typer.secho(f"\nFewer facts than the previous run: {len(regressions)}", bold=True, fg=typer.colors.YELLOW)
+        for r in regressions:
+            typer.secho(f"  {r}", fg=typer.colors.YELLOW)
 
     typer.echo(f"\nActual Gemini calls used: {combined.calls_used} (estimated {total_estimate})")
     typer.echo(client.tracker.summary())

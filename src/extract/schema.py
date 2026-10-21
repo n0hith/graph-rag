@@ -60,6 +60,9 @@ class SubsidiaryFact(BaseModel):
     """One subsidiary from Form AOC-1 (-> `(Company)-[:SUBSIDIARY_OF]->(Company)`)."""
 
     subsidiary_name: str
+    # Two subsidiaries can share a name (Infosys has "Infosys Consulting S.R.L." in both
+    # Romania and Argentina), so the country is part of what tells them apart.
+    country: str | None = None
     cin: str | None = None
     stake_pct: float | None = None
     evidence: str
@@ -71,7 +74,9 @@ class SubsidiaryFactList(BaseModel):
 
 class AuditorFact(BaseModel):
     """One audit firm (-> `(Company)-[:AUDITED_BY]->(AuditFirm)`). `audit_type` is set
-    by the caller (which section the fact came from), not asked of the model."""
+    by the caller (which section the fact came from), not asked of the model. A secretarial
+    audit can be signed by an individual practising company secretary rather than a firm
+    (Tata Consumer's is); `firm_name` then holds that person's name."""
 
     firm_name: str
     firm_registration_no: str | None = None

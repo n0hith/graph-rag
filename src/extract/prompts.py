@@ -7,8 +7,12 @@ COMMON_RULES = (
     "Only extract facts that are explicitly stated in the excerpt below. Never infer, "
     "guess, or use outside knowledge. For every item, the `evidence` field must be a "
     "short, exact quote copied verbatim from the excerpt (same spelling, spacing and "
-    "punctuation) that supports it. If nothing relevant appears in this excerpt, return "
-    "an empty list rather than guessing."
+    "punctuation) that supports it: one continuous piece of the text, never shortened "
+    "with '...' or an ellipsis, and never rebuilt from separate table cells joined with "
+    "'|' or other separators. For a table row, quote only a short identifying part of "
+    "it (for example just the company's name, or a person's name and DIN as printed), "
+    "not the whole row. If nothing relevant appears in this excerpt, return an empty "
+    "list rather than guessing."
 )
 
 
@@ -27,6 +31,10 @@ def director_prompt(pages: list[dict]) -> str:
         "'Non-Independent, Executive'). Set `status` to 'ceased' only if the text marks "
         "them as having resigned, ceased, or an erstwhile/outgoing member; 'appointed' "
         "only if the text says they joined partway through the year; otherwise 'current'. "
+        "Fill `din` (the 8-digit Director Identification Number) wherever the excerpt gives "
+        "it for that person, including in a 'DIN' column, in brackets after the name, or "
+        "in a certificate table listing the directors' DINs (e.g. a certificate of "
+        "non-disqualification of directors); list the people in such a table too. "
         "If the report lists the director's directorships in other listed entities (often "
         "a table column like 'Directorship in other listed entity (Category of "
         "Directorship)'), put each one in `other_listed_directorships`: `company_name` "
@@ -59,9 +67,14 @@ def subsidiary_prompt(pages: list[dict]) -> str:
     return (
         f"{COMMON_RULES}\n\n"
         "From this Form AOC-1 excerpt (salient features of subsidiaries' financial "
-        "statements), list every subsidiary named, with its CIN if stated and its "
+        "statements), list every subsidiary named, with its country if stated (two "
+        "subsidiaries can share a name in different countries; list both), its CIN if stated and its "
         "parent's percentage shareholding (`stake_pct`) if stated. Do not include "
-        "associates or joint ventures listed under a separate 'Part B'.\n\n"
+        "associates or joint ventures listed under a separate 'Part B'. Go through every "
+        "row of the table; for `evidence`, quote just the subsidiary's name as printed. "
+        "Skip any summary block that repeats subsidiaries already listed in the table "
+        "(e.g. 'Details of Direct Subsidiaries, on consolidated basis including their "
+        "respective subsidiaries included above').\n\n"
         f"Report excerpt:\n{_paged_text(pages)}"
     )
 
@@ -70,8 +83,11 @@ def auditor_prompt(pages: list[dict], audit_type: str) -> str:
     kind = "statutory (financial statements)" if audit_type == "statutory" else "secretarial"
     return (
         f"{COMMON_RULES}\n\n"
-        f"This excerpt is the company's {kind} audit report. Identify the audit firm that "
-        "signed it (usually near the end, after 'For <Firm Name>'). Fill "
+        f"This excerpt is the company's {kind} audit report. Identify who signed it: an "
+        "audit firm (usually after 'For <Firm Name>' near the end) or, if no firm is named, "
+        "the individual practising professional who signed it (e.g. a Practising Company "
+        "Secretary signing in their own name); put that firm's or person's name in "
+        "`firm_name`. Fill "
         "`firm_registration_no` only with the firm's registration number, i.e. a value "
         "labelled 'Firm Registration No.', 'Firm's Registration No.' or 'FRN'. Never put a "
         "peer review certificate number ('PR No.'), FCS/ACS/membership number, CP number or "
@@ -87,6 +103,8 @@ def related_party_prompt(pages: list[dict]) -> str:
         "(company or person) and the nature of the transaction(s) with them (e.g. "
         "'sale of goods', 'remuneration', 'rent paid'). Give the amount in INR crore if "
         "stated (convert if given in lakh or another unit, stating the converted crore "
-        "figure). If a party has several kinds of transactions, list each as a separate item.\n\n"
+        "figure). If a party has several kinds of transactions, list each as a separate item. "
+        "Go through every row and column of any transactions table; when it gives both the "
+        "current and the previous year, use the current year (2023-24) figure.\n\n"
         f"Report excerpt:\n{_paged_text(pages)}"
     )

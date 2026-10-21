@@ -42,7 +42,13 @@ FY = "FY2023-24"
 # Pages per LLM call. Keeps each call focused and keeps cost/latency predictable, per
 # PROJECT_SPEC.md Phase 3: "split by page groups if needed, then merge duplicate facts".
 GROUP_SIZE = 6
+# Dense tables (a page of AOC-1 lists ~40 subsidiaries; Tata Steel's related-party table has
+# dozens of cells) came out unstable at 6 pages per call: one re-run returned a single
+# subsidiary for Tata Motors, another skipped Tata Steel's whole table. Fewer pages per call.
+GROUP_SIZE_BY_SECTION = {"subsidiaries_aoc1": 2, "related_party": 2}
 MAX_RETRIES = 2
+# Extraction should give the same answer every time it's asked; Gemini's default isn't 0.
+TEMPERATURE = 0.0
 
 
 @dataclass(frozen=True)
@@ -58,6 +64,21 @@ class Fact:
     fy: str
     data: dict
     evidence: str
+
+
+FACT_FIELDS = ("fact_type", "method", "company", "nse_symbol", "section_type", "page", "fy", "data", "evidence")
+
+
+def save_facts(path: Path, facts: list[Fact]) -> None:
+    """One JSON object per line, in `FACT_FIELDS` order."""
+    with path.open("w", encoding="utf-8") as fh:
+        for f in facts:
+            fh.write(json.dumps({k: getattr(f, k) for k in FACT_FIELDS}, ensure_ascii=False) + "\n")
+
+
+def load_facts(path: Path) -> list[Fact]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [Fact(**{k: row[k] for k in FACT_FIELDS}) for row in map(json.loads, filter(str.strip, lines))]
 
 
 @dataclass(frozen=True)
@@ -76,6 +97,8 @@ class ExtractionResult:
     facts: list[Fact] = field(default_factory=list)
     dropped: list[DroppedFact] = field(default_factory=list)
     calls_used: int = 0
+    merges: list[str] = field(default_factory=list)  # director copies merged, one line each
+    ambiguous: list[str] = field(default_factory=list)  # possible same-person pairs left unmerged
 
 
 # An auditor's `firm_registration_no` is only kept when the evidence quote shows it under
@@ -95,7 +118,8 @@ def _checked_frn(value: str | None, evidence: str) -> str | None:
     return value
 
 
-def _group_pages(pages: list[dict], size: int = GROUP_SIZE) -> list[list[dict]]:
+def _group_pages(pages: list[dict], section_type: str = "") -> list[list[dict]]:
+    size = GROUP_SIZE_BY_SECTION.get(section_type, GROUP_SIZE)
     return [pages[i : i + size] for i in range(0, len(pages), size)]
 
 
@@ -138,7 +162,7 @@ def _call_structured(client: LLMClient, prompt: str, schema: type, step: str):
                 "Return only valid JSON matching the required schema."
             )
         try:
-            return client.generate_structured(full_prompt, schema, step=step)
+            return client.generate_structured(full_prompt, schema, temperature=TEMPERATURE, step=step)
         except StructuredOutputError as exc:
             last_error = str(exc)
             if attempt == MAX_RETRIES:
@@ -163,7 +187,7 @@ def estimate_calls(sections_dir: Path, symbol: str) -> dict[str, int]:
         has_subsidiary_table = any(
             parse_subsidiaries_table(t) for p in aoc1["pages"] for t in p["tables"]
         )
-        estimate["subsidiaries"] = 0 if has_subsidiary_table else len(_group_pages(aoc1["pages"]))
+        estimate["subsidiaries"] = 0 if has_subsidiary_table else len(_group_pages(aoc1["pages"], "subsidiaries_aoc1"))
 
     for section_type, key in [("auditor_report", "auditor_statutory"), ("secretarial_audit", "auditor_secretarial")]:
         sec = _load_section(sections_dir, symbol, section_type)
@@ -172,7 +196,7 @@ def estimate_calls(sections_dir: Path, symbol: str) -> dict[str, int]:
 
     rpt = _load_section(sections_dir, symbol, "related_party")
     if rpt:
-        estimate["related_party"] = len(_group_pages(rpt["pages"]))
+        estimate["related_party"] = len(_group_pages(rpt["pages"], "related_party"))
 
     return estimate
 
@@ -185,7 +209,7 @@ def _fact_key(fact_type: str, data: dict) -> tuple:
     if fact_type == "other_directorship":
         return (fact_type, (data.get("din") or data.get("person_name", "")).lower(), data.get("company_name", "").lower())
     if fact_type == "subsidiary":
-        return (fact_type, data.get("subsidiary_name", "").lower())
+        return (fact_type, data.get("subsidiary_name", "").lower(), (data.get("country") or "").lower())
     if fact_type == "auditor":
         return (fact_type, data.get("firm_name", "").lower(), data.get("audit_type", ""))
     if fact_type == "related_party":
@@ -221,7 +245,7 @@ def _extract_llm_facts(
     facts: list[Fact] = []
     dropped: list[DroppedFact] = []
     calls = 0
-    for group in _group_pages(pages):
+    for group in _group_pages(pages, section_type):
         calls += 1
         prompt = prompt_fn(group)
         try:
@@ -240,6 +264,112 @@ def _extract_llm_facts(
                 continue
             facts.append(Fact(fact_type, "llm", company.name, company.nse_symbol, section_type, page, FY, data, item.evidence))
     return facts, dropped, calls
+
+
+PERSON_TITLE_RE = re.compile(r"^(?:mr|mrs|ms|dr|prof|shri|smt)\b\s*")
+
+
+def _norm_person(name: str) -> str:
+    """Case, titles and punctuation ignored: "Mr. L. Krishnakumar" == "L Krishnakumar"."""
+    name = " ".join(re.sub(r"[.,'’`]", " ", name.lower()).split())
+    return PERSON_TITLE_RE.sub("", name)
+
+
+def _initials_match(a: str, b: str) -> bool:
+    """Same surname, and the given names agree on their initials: "om prakash bhatt" vs
+    "o p bhatt". Too loose to merge on, but worth listing as a possible match."""
+    ta, tb = a.split(), b.split()
+    if len(ta) < 2 or len(tb) < 2 or ta[-1] != tb[-1]:
+        return False
+    return [t[0] for t in ta[:-1]] == [t[0] for t in tb[:-1]]
+
+
+def _merge_directors(facts: list[Fact]) -> tuple[list[Fact], list[str], list[str]]:
+    """Fold director facts without a DIN into the one same-name director that has a DIN.
+
+    The LLM sees a director on several pages (board table, attendance table, a certificate
+    listing DINs) and only some of them print the DIN, so the same person can come out once
+    with a DIN and once without, which DIN-or-name dedup can't catch. A copy is merged only
+    when its normalized name matches exactly one DIN; several DINs for one name, or a name
+    that only matches on initials ("Om Prakash Bhatt" / "O P Bhatt"), are listed instead.
+    The dropped copy's `other_directorship` facts are re-pointed at the kept director."""
+    directors = [f for f in facts if f.fact_type == "director"]
+    by_name: dict[str, dict[str, Fact]] = {}
+    for f in directors:
+        if f.data.get("din"):
+            by_name.setdefault(_norm_person(f.data["person_name"]), {})[f.data["din"]] = f
+
+    merged_into: dict[int, Fact] = {}
+    merges, ambiguous = [], []
+    first_without_din: dict[str, Fact] = {}
+    for f in directors:
+        if f.data.get("din"):
+            continue
+        key = _norm_person(f.data["person_name"])
+        targets = by_name.get(key, {})
+        if len(targets) == 1:
+            target = next(iter(targets.values()))
+        elif len(targets) > 1:
+            ambiguous.append(f"{f.data['person_name']!r} (p.{f.page}, no DIN) matches several DINs: "
+                             f"{', '.join(sorted(targets))}; not merged")
+            continue
+        elif key in first_without_din:
+            target = first_without_din[key]
+        else:
+            first_without_din[key] = f
+            for other_key, dins in by_name.items():
+                if _initials_match(key, other_key):
+                    t = next(iter(dins.values()))
+                    ambiguous.append(f"{f.data['person_name']!r} (p.{f.page}, no DIN) may be "
+                                     f"{t.data['person_name']!r} (DIN {t.data['din']}); not merged")
+            continue
+        merged_into[id(f)] = target
+        merges.append(f"{f.data['person_name']!r} (p.{f.page}, no DIN) -> {target.data['person_name']!r} "
+                      f"(DIN {target.data.get('din') or 'none'}, p.{target.page})")
+
+    if not merged_into:
+        return facts, merges, ambiguous
+    # A director's other_directorship facts point at it by (person_name, din).
+    repoint = {(f.data["person_name"], None): merged_into[id(f)] for f in directors if id(f) in merged_into}
+    kept = []
+    for f in facts:
+        if id(f) in merged_into:
+            continue
+        target = repoint.get((f.data.get("person_name"), f.data.get("din"))) if f.fact_type == "other_directorship" else None
+        if target is not None:
+            f = Fact(f.fact_type, f.method, f.company, f.nse_symbol, f.section_type, f.page, f.fy,
+                     {**f.data, "person_name": target.data["person_name"], "din": target.data.get("din")}, f.evidence)
+        kept.append(f)
+    return _dedupe(kept), merges, ambiguous
+
+
+def keep_previous_if_fewer(
+    previous: list[Fact], new: list[Fact], accept_fewer: bool = False
+) -> tuple[list[Fact], list[str]]:
+    """Guard against silent regressions between runs, per (fact type, section): if the new
+    run found fewer facts than the previous one did, keep the previous facts for that part
+    and flag it. Both sides have their director copies merged first, so a merge that
+    legitimately shrinks the director count isn't mistaken for a regression. With
+    `accept_fewer`, the new facts are kept anyway, but the drop is still flagged."""
+    previous, _, _ = _merge_directors(previous)
+
+    def groups(facts: list[Fact]) -> dict[tuple[str, str], list[Fact]]:
+        out: dict[tuple[str, str], list[Fact]] = {}
+        for f in facts:
+            out.setdefault((f.fact_type, f.section_type), []).append(f)
+        return out
+
+    old_groups, new_groups = groups(previous), groups(new)
+    kept, flags = [], []
+    for key in list(new_groups) + [k for k in old_groups if k not in new_groups]:
+        old, fresh = old_groups.get(key, []), new_groups.get(key, [])
+        if len(fresh) < len(old):
+            action = "kept the new facts anyway (--accept-fewer)" if accept_fewer else "kept the previous facts"
+            flags.append(f"{key[0]} / {key[1]}: new run found {len(fresh)}, previous run {len(old)}; {action}")
+            kept.extend(fresh if accept_fewer else old)
+        else:
+            kept.extend(fresh)
+    return kept, flags
 
 
 def _directorship_facts(director: Fact, entries: list[dict], company: Company) -> list[Fact]:
@@ -359,5 +489,5 @@ def extract_company(company: Company, sections_dir: Path, client: LLMClient) -> 
         result.dropped.extend(dropped)
         result.calls_used += calls
 
-    result.facts = _dedupe(result.facts)
+    result.facts, result.merges, result.ambiguous = _merge_directors(_dedupe(result.facts))
     return result
