@@ -1,6 +1,6 @@
 # Extraction summary
 
-Generated 2026-10-22 from code at commit `bf2a6fd`. Raw facts are in `data/extracted/` (gitignored); this file is the tracked record.
+Generated 2026-10-22 from code at commit `b6bfda0`. Raw facts are in `data/extracted/` (gitignored); this file is the tracked record.
 
 ## Facts per company
 
@@ -254,10 +254,10 @@ Partial re-runs since the last full run:
 
 - Related-party facts for TCS, Tata Motors, Tata Steel and Tata Consumer are from the 7b2dd6c-prompt run, checked on the page since; Infosys related-party facts were re-extracted on 2026-10-22 with the previous page given as context only. Every stored related-party fact now has a verified FY2024 amount.
 - Removed on 2026-10-22, no API calls: 79 nil rows whose FY2024 cell is a dash (Tata Steel 29, Tata Consumer 6, Infosys 44, which includes both copies of five nil rows the LLM had listed twice), and Tata Motors' 10 'Transactions with struck off companies' rows (note 45, printed inside the related-party section; relationship column 'External vendor' / 'External customer'). None of the 69 no-amount facts was a party listed without a transaction, so no separate RELATED_PARTY_OF fact type was added.
-- Three rows of the 50-fact hand-check sample are nil rows removed by that rule: row 4 (Infosys, Portland Group Pty Ltd / Unbilled revenues) and rows 36-37 (Tata Steel, Sale of investments / Interest income recognised). Two sample rows cite a corrected page: Infosys Portland Group p.254, Tata Consumer Joint Ventures / Other Operating Income p.423.
 - The first page check moved 21 Tata Consumer related-party facts from p.422 (the list of related parties) to the table page their row is on (pp.423-426): the cited page had been the first page of the 2-page group containing the short quote.
 - Tata Consumer secretarial auditor (Dr. Asim Kumar Chattopadhyay, individual), the 7 KMP facts and the Company Secretary's ceased date (Neelabja Chakrabarty, February 07, 2024) are kept from the previous run, by decision of 2026-10-22. KMP copies of one person under different spellings (L. Krishnakumar / L Krishnakumar / Lakshmanan Krishna Kumar) are left for Phase 4 entity resolution.
 - Directors without a DIN in their own governance section: Uri Levine (Infosys; DIN 08733837 is printed on p.51, Board's report) and O. P. Bhatt (Tata Steel; DIN 00548091 printed on p.177). The extractor only reads the governance section, so these stay empty.
 - TCS's certificate (p.117) gives Al-Noor Ramji DIN 08326836, which is Don Callahan's DIN everywhere else in TCS's report; TCS's other pages and Tata Motors (pp.236, 248, 264) all print Ramji as 00230865. Recorded as din_conflict + din_resolution, both DINs kept.
 - Tata Steel AOC-1 row 103 shows as 1 missing + 1 extra only because the text breaks the name across lines ('-und-' / 'Vertriebs'); it is the same subsidiary, extracted once. Tata Steel is 129/129.
 - Table cells (not page text) still carry rupee-font stand-in letters and, on Tata Steel p.249/409 and Infosys p.114, a missing first letter; no fact is read from those cells (the amount check reads page words, not table cells).
+- No hand-checked sample: extraction accuracy rests on the automatic checks above (completeness against AOC-1 rows and the directors' certificate, the cross-report directorship check, related-party amounts checked on the PDF page, the date rule). The `sample-facts` tool exists but its sample was not checked.
