@@ -1,16 +1,16 @@
 # Extraction summary
 
-Generated 2026-10-22 from code at commit `c247612`. Raw facts are in `data/extracted/` (gitignored); this file is the tracked record.
+Generated 2026-10-22 from code at commit `bf2a6fd`. Raw facts are in `data/extracted/` (gitignored); this file is the tracked record.
 
 ## Facts per company
 
 | Company | auditor | director | kmp | other_directorship | related_party | subsidiary | total | LLM calls (last run) |
 |---|---|---|---|---|---|---|---|---|
 | TCS | 2 LLM | 11 table | 5 LLM | 20 table | 52 LLM | 52 table | 142 | 10 |
-| TATAMOTORS | 2 LLM | 10 LLM | 3 LLM | 21 LLM | 57 LLM | 90 LLM | 183 | 19 |
-| TATASTEEL | 2 LLM | 11 LLM | 6 LLM | 21 LLM | 76 LLM | 129 LLM | 245 | 22 |
-| TATACONSUM | 2 LLM | 10 LLM | 7 LLM | 17 LLM | 67 LLM | 40 LLM | 143 | 20 |
-| INFY | 2 LLM | 10 LLM | 4 LLM | 0 | 320 LLM | 91 LLM | 427 | 27 |
+| TATAMOTORS | 2 LLM | 10 LLM | 3 LLM | 21 LLM | 47 LLM | 90 LLM | 173 | 19 |
+| TATASTEEL | 2 LLM | 11 LLM | 6 LLM | 21 LLM | 47 LLM | 129 LLM | 216 | 22 |
+| TATACONSUM | 2 LLM | 10 LLM | 7 LLM | 17 LLM | 61 LLM | 40 LLM | 137 | 20 |
+| INFY | 2 LLM | 10 LLM | 4 LLM | 0 | 276 LLM | 91 LLM | 383 | 27 |
 
 ## Completeness (counted independently from the section text)
 
@@ -57,30 +57,39 @@ Subsidiaries: numbered AOC-1 Part A rows vs extracted, with each extracted name 
 
 ## Related-party amounts checked on the page (no LLM)
 
-Each amount must be the FY2024 figure on its party's row (matrix tables: the nature's row, under the party's column), and in list tables the row must sit under the fact's nature heading (carried over a column or page break). Passing facts carry `amount_as_printed`. Amounts are compared exactly, in crore as printed; a printed dash counts as nil (0).
+Each amount must be the FY2024 figure on its party's row (matrix tables: the nature's row, under the party's column), and in list tables the row must sit under the fact's nature heading (carried over a column or page break). Passing facts carry `amount_as_printed`. Amounts are compared exactly, in crore as printed. A fact whose amount sits under exactly one other printed heading is relabelled to it (`nature_as_extracted` keeps the old nature). Rows whose FY2024 cell is a dash (nil) are not stored as transactions, nor are the companies in Tata Motors' 'Transactions with struck off companies' table (external vendors and customers).
 
-| Company | Related-party facts | Pass | of which nil (-) | Fail | No amount |
-|---|---|---|---|---|---|
-| TCS | 52 | 52 | 0 | 0 | 0 |
-| TATAMOTORS | 57 | 48 | 0 | 2 | 7 |
-| TATASTEEL | 76 | 47 | 0 | 0 | 29 |
-| TATACONSUM | 67 | 66 | 5 | 0 | 1 |
-| INFY | 320 | 287 | 12 | 1 | 32 |
+| Company | Related-party facts | Pass | Relabelled | Fail | No amount | Nil rows removed | Struck-off removed |
+|---|---|---|---|---|---|---|---|
+| TCS | 52 | 52 | 0 | 0 | 0 | 0 | 0 |
+| TATAMOTORS | 47 | 47 | 2 | 0 | 0 | 0 | 10 |
+| TATASTEEL | 47 | 47 | 0 | 0 | 0 | 29 | 0 |
+| TATACONSUM | 61 | 61 | 0 | 0 | 0 | 6 | 0 |
+| INFY | 276 | 276 | 0 | 0 | 0 | 44 | 0 |
 
 How each pass was decided:
 
-- INFY: party row, column headed FY2024, under its nature heading: 287
-- TATACONSUM: party row, column headed FY2024, under its nature heading: 66
-- TATAMOTORS: party row, column headed FY2024, under its nature heading: 48
+- INFY: party row, column headed FY2024, under its nature heading: 276
+- TATACONSUM: party row, column headed FY2024, under its nature heading: 61
+- TATAMOTORS: party row, column headed FY2024, under its nature heading: 47
 - TATASTEEL: nature row x party column, row's first line (title gives both years, current year first): 47
 - TCS: nature row x party column, table titled FY2024: 40
 - TCS: party row, column headed FY2024, under its nature heading: 12
 
-Failing (3):
+Relabelled (2):
 
-- TATAMOTORS p.464: Tata Motors Passenger Vehicles Limited / Bill discounted = 995.0: amount is on the party's row only under other heading(s): servicesrendered
-- TATAMOTORS p.464: Tata Passenger Electric Mobility Limited / Bill discounted = 246.56: amount is on the party's row only under other heading(s): servicesrendered
-- INFY p.254: Infosys Turkey Bilgi Teknolojileri Limited Sirketi / Loans and advances in the nature of loans given to subsidiaries = 57.0: amount is on the party's row only under other heading(s): loansgiven
+- TATAMOTORS p.464: Tata Motors Passenger Vehicles Limited = 995.00: 'Bill discounted' -> 'Services rendered'
+- TATAMOTORS p.464: Tata Passenger Electric Mobility Limited = 246.56: 'Bill discounted' -> 'Services rendered'
+
+Not passing (0):
+
+None.
+
+## Dates later than the report itself
+
+A date after the report's own date (its PDF's last-saved date) cannot be right; the same person's other mention is used and the printed date kept as `date_conflict`.
+
+- TATACONSUM: kmp L Krishnakumar (p.295): ceased_on printed 'October 31, 2024', after the report's date (2024-05-21, PDF last saved); now 'October 31, 2023' as on p.289, p.317
 
 ## Cross-report directorships (check-directorships)
 
@@ -121,13 +130,13 @@ Regressions / key-field changes vs previous run:
 
 ### TATAMOTORS
 
-Dropped: 8 (1× evidence not found in source text; 6× in a summary block repeating rows listed above it; 1× not on an FY2024 board/attendance table or certificate)
+Dropped: 18 (1× evidence not found in source text; 6× in a summary block repeating rows listed above it; 1× not on an FY2024 board/attendance table or certificate; 10× struck-off company (external vendor/customer), not a related party)
 - [kmp] evidence not found in source text: "Mr P B Balaji\nChief Financial Officer"
 - [subsidiary] in a summary block repeating rows listed above it: "Tata Technologies Limited"
 - [subsidiary] in a summary block repeating rows listed above it: "Tata Motors Finance Holding Ltd"
 - [subsidiary] in a summary block repeating rows listed above it: "TML Holdings Pte. Limited Singapore**"
 - [subsidiary] in a summary block repeating rows listed above it: "Jaguar \nLand \nRover \nAutomotive \nPlc"
-- … 3 more (see data/extracted/<SYMBOL>.run.json)
+- … 13 more (see data/extracted/<SYMBOL>.run.json)
 
 Merges:
 - DIN filled from certificate: Mr N Chandrasekaran -> 00121863 (p.264)
@@ -149,15 +158,21 @@ Director and amount checks:
 - ceased_on from text: Mr Mitsuhiko Yamashita October 27, 2023
 - appointed_on from text: Mr Bharat Puri May 15, 2024
 - not an FY2024 director (no board/attendance/certificate mention): Mr Guenter Butschek 07427375 p.248
-- amount not verified on the page: Tata Motors Passenger Vehicles Limited / Bill discounted = 995.0 (p.464): amount is on the party's row only under other heading(s): servicesrendered
-- amount not verified on the page: Tata Passenger Electric Mobility Limited / Bill discounted = 246.56 (p.464): amount is on the party's row only under other heading(s): servicesrendered
+- nature relabelled to the printed heading: Tata Motors Passenger Vehicles Limited / Bill discounted = 995.0 (p.464) -> 'Services rendered'
+- nature relabelled to the printed heading: Tata Passenger Electric Mobility Limited / Bill discounted = 246.56 (p.464) -> 'Services rendered'
 
 Regressions / key-field changes vs previous run:
 - related_party / related_party: new run found 47, previous run 57; kept the previous facts
 
 ### TATASTEEL
 
-Dropped: 0
+Dropped: 29 (29× nil (–) in FY2024: not a transaction)
+- [related_party] nil (–) in FY2024: not a transaction: "Sale of goods#"
+- [related_party] nil (–) in FY2024: not a transaction: "Securitisation of receivables"
+- [related_party] nil (–) in FY2024: not a transaction: "Securitisation of receivables"
+- [related_party] nil (–) in FY2024: not a transaction: "Securitisation of receivables"
+- [related_party] nil (–) in FY2024: not a transaction: "Interest income recognised"
+- … 24 more (see data/extracted/<SYMBOL>.run.json)
 
 Director and amount checks:
 - appointed_on from certificate: Dr. Shekhar C. Mande June 1, 2023 (p.261)
@@ -168,7 +183,13 @@ Regressions / key-field changes vs previous run:
 
 ### TATACONSUM
 
-Dropped: 0
+Dropped: 6 (6× nil (–) in FY2024: not a transaction)
+- [related_party] nil (–) in FY2024: not a transaction: "Joint Venture of Subsidiaries"
+- [related_party] nil (–) in FY2024: not a transaction: "Tata Smartfoodz Limited"
+- [related_party] nil (–) in FY2024: not a transaction: "Tata Consumer Soulfull Private Limited"
+- [related_party] nil (–) in FY2024: not a transaction: "Amalgamated Plantations Pvt Limited"
+- [related_party] nil (–) in FY2024: not a transaction: "NourishCo Beverages Limited"
+- … 1 more (see data/extracted/<SYMBOL>.run.json)
 
 Merges:
 - 'N. Chandrasekaran' (p.289, no DIN) -> 'N. Chandrasekaran' (DIN 00121863, p.284)
@@ -185,6 +206,7 @@ Merges:
 
 Director and amount checks:
 - ceased_on from text: Mr. Lakshmanan Krishna Kumar October 31, 2023
+- date after the report's date (2024-05-21): kmp L Krishnakumar ceased_on 'October 31, 2024' (p.295) -> 'October 31, 2023' (as on p.289, p.317)
 
 Regressions / key-field changes vs previous run:
 - kmp neelabja chakrabarty / Company Secretary: ceased_on was 'February 07, 2024', now empty
@@ -194,13 +216,13 @@ Regressions / key-field changes vs previous run:
 
 ### INFY
 
-Dropped: 58 (58× quoted from the context page only)
+Dropped: 102 (58× quoted from the context page only; 44× nil (–) in FY2024: not a transaction)
 - [related_party] quoted from the context page only: "Infosys Public Services Canada Inc."
 - [related_party] quoted from the context page only: "HIPUS Co., Ltd"
 - [related_party] quoted from the context page only: "Infosys Consulting GmbH"
 - [related_party] quoted from the context page only: "Infy Consulting B.V."
 - [related_party] quoted from the context page only: "Infosys Austria GMBH"
-- … 53 more (see data/extracted/<SYMBOL>.run.json)
+- … 97 more (see data/extracted/<SYMBOL>.run.json)
 
 Merges:
 - DIN filled from certificate: D. Sundaram -> 00016304 (p.118)
@@ -221,7 +243,6 @@ Director and amount checks:
 - appointed_on from certificate: Nitin Paranjpe January 01, 2024 (p.118)
 - appointed_on from certificate: Helene Auriol Potier May 26, 2023 (p.118)
 - ceased_on from text: Uri Levine April 19, 2023
-- amount not verified on the page: Infosys Turkey Bilgi Teknolojileri Limited Sirketi / Loans and advances in the nature of loans given to subsidiaries = 57.0 (p.254): amount is on the party's row only under other heading(s): loansgiven
 
 Regressions / key-field changes vs previous run:
 - director helene auriol potier: appointed_on was 'April 19, 2023', now 'May 26, 2023'
@@ -231,14 +252,11 @@ Partial re-runs since the last full run:
 
 ## Known gaps
 
-- Related-party facts for TCS, Tata Motors, Tata Steel and Tata Consumer are from the 7b2dd6c-prompt run; their amounts are now checked on the page (see above), and none of those sections had enough failures to re-extract (Tata Motors 2 of 57, others 0). Infosys related-party facts were re-extracted on 2026-10-22 with the previous page given as context only.
-- Tata Motors p.464: two rows at the top of the page (Tata Motors Passenger Vehicles Limited 995.00, Tata Passenger Electric Mobility Limited 246.56) continue the 'Services rendered' heading from p.463 but are labelled 'Bill discounted'. Amounts are right, nature is wrong; not re-extracted (2 of 57 facts).
-- Infosys: Infosys Turkey Bilgi Teknolojileri Limited Sirketi 57 is labelled 'Loans and advances in the nature of loans given to subsidiaries'; the row is under the printed heading 'Loans given', so it fails the heading check.
-- Infosys: five nil rows (Infosys Business Solutions LLC equity; Infosys Singapore Pte. Ltd preference share, loans given, loans repaid; Infosys Consulting AG other financial liabilities) each have an extra copy with no amount next to the verified one; dedup treats a null amount and 0 as different.
-- Related-party facts with no amount (69: Tata Steel 29, Infosys 32, Tata Motors 7, Tata Consumer 1) are not checked; most are rows whose FY2024 cell is a dash.
+- Related-party facts for TCS, Tata Motors, Tata Steel and Tata Consumer are from the 7b2dd6c-prompt run, checked on the page since; Infosys related-party facts were re-extracted on 2026-10-22 with the previous page given as context only. Every stored related-party fact now has a verified FY2024 amount.
+- Removed on 2026-10-22, no API calls: 79 nil rows whose FY2024 cell is a dash (Tata Steel 29, Tata Consumer 6, Infosys 44, which includes both copies of five nil rows the LLM had listed twice), and Tata Motors' 10 'Transactions with struck off companies' rows (note 45, printed inside the related-party section; relationship column 'External vendor' / 'External customer'). None of the 69 no-amount facts was a party listed without a transaction, so no separate RELATED_PARTY_OF fact type was added.
+- Three rows of the 50-fact hand-check sample are nil rows removed by that rule: row 4 (Infosys, Portland Group Pty Ltd / Unbilled revenues) and rows 36-37 (Tata Steel, Sale of investments / Interest income recognised). Two sample rows cite a corrected page: Infosys Portland Group p.254, Tata Consumer Joint Ventures / Other Operating Income p.423.
 - The first page check moved 21 Tata Consumer related-party facts from p.422 (the list of related parties) to the table page their row is on (pp.423-426): the cited page had been the first page of the 2-page group containing the short quote.
-- Tata Consumer secretarial auditor (Dr. Asim Kumar Chattopadhyay, individual), the 7 KMP facts and the Company Secretary's ceased date (Neelabja Chakrabarty, February 07, 2024) are kept from the previous run, by decision of 2026-10-22.
-- Tata Consumer p.295 prints 'L Krishnakumar, Executive Director & Group CFO (upto October 31, 2024)'; every other mention says October 31, 2023. The KMP fact from p.295 copies the report's own typo.
+- Tata Consumer secretarial auditor (Dr. Asim Kumar Chattopadhyay, individual), the 7 KMP facts and the Company Secretary's ceased date (Neelabja Chakrabarty, February 07, 2024) are kept from the previous run, by decision of 2026-10-22. KMP copies of one person under different spellings (L. Krishnakumar / L Krishnakumar / Lakshmanan Krishna Kumar) are left for Phase 4 entity resolution.
 - Directors without a DIN in their own governance section: Uri Levine (Infosys; DIN 08733837 is printed on p.51, Board's report) and O. P. Bhatt (Tata Steel; DIN 00548091 printed on p.177). The extractor only reads the governance section, so these stay empty.
 - TCS's certificate (p.117) gives Al-Noor Ramji DIN 08326836, which is Don Callahan's DIN everywhere else in TCS's report; TCS's other pages and Tata Motors (pp.236, 248, 264) all print Ramji as 00230865. Recorded as din_conflict + din_resolution, both DINs kept.
 - Tata Steel AOC-1 row 103 shows as 1 missing + 1 extra only because the text breaks the name across lines ('-und-' / 'Vertriebs'); it is the same subsidiary, extracted once. Tata Steel is 129/129.
