@@ -23,6 +23,7 @@ from pathlib import Path
 from src.ingest.companies import Company
 from src.llm.client import LLMClient, StructuredOutputError
 from src.extract.amounts import NIL_REASON, STRUCK_OFF_REASON, apply_checks
+from src.extract.cleanup import clean_facts
 from src.extract.dates import fix_impossible_dates, report_date
 from src.extract.prompts import (
     auditor_prompt,
@@ -840,7 +841,8 @@ def extract_company(
     pdf_path = raw_pdf_dir / any_section["source_pdf"] if any_section else None
     published_on = report_date(pdf_path) if pdf_path and pdf_path.exists() else None
     facts, date_notes = fix_impossible_dates(facts, published_on, company.nse_symbol, merge_overrides or [])
-    notes = notes + date_notes
+    facts, cleanup_notes, _ = clean_facts(facts, cg_pages)
+    notes = notes + date_notes + [f"cleanup: {n}" for n in cleanup_notes]
     result.facts = facts
     # Removals by a logged rule the previous run didn't apply, so the regression guard
     # doesn't mistake them for facts the new run missed.

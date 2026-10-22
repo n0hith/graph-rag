@@ -22,3 +22,6 @@ data/vector_store/*
 Thumbs.db
 .DS_Store
 !data/resolved/id_registry.csv
+
+# Verification exports (local only)
+exports/

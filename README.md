@@ -93,6 +93,7 @@ python -m src.cli --help
 | `extract` | 3 | Fact extraction (`--section related_party` re-runs one section; `--sample-size 0` skips writing a sample CSV) |
 | `check-directorships` | 3 | Check each report's "directorship in other listed entity" claims against the other pilot company's own director list |
 | `check-rpt-amounts` | 3 | Check related-party amounts on the PDF page (party's row, FY2024 column, nature heading), record `amount_as_printed`, relabel a nature found under another printed heading, remove nil rows and struck-off companies; no LLM calls |
+| `clean-facts` | 3 | Clean saved facts without LLM calls: names (line breaks, footnote markers), other-directorship pages, KMP appointed after the year end, director roles |
 | `check-dates` | 3 | Replace appointment/cessation dates later than the report's own date with the same person's other mention (`date_conflict` keeps the printed one); no LLM calls |
 | `resolve` | 4 | Entity resolution: people by DIN, then confirmed merges, then name; companies by CIN, then normalised name; look-alikes listed in `data/resolved/uncertain.csv`, not merged. Writes `data/resolved/` and `reports/resolution_summary.md`; no LLM calls |
 | `load` | 5 | Load `data/resolved/` into Neo4j: constraints and indexes, then MERGE on stable ids (re-running changes nothing; facts gone from the data are removed), node/relationship counts and three sanity queries. Stable ids: CIN, DIN, or the id saved in `data/resolved/id_registry.csv` (committed) |
@@ -183,7 +184,8 @@ Not yet available (Phase 7).
   the subsidiary's name, so they're never confused with the parent's own report.
 - Auditors of subsidiaries are usually not named in the parent company's report, so questions
   about them are marked unanswerable from this data.
-- Extracted facts were not hand-verified on a sample. Their accuracy rests on automatic
+- Extraction accuracy: a 50-fact sample was checked against the source pages with AI
+  assistance (45/47 confirmed, 0 wrong, 2 unconfirmed, now fixed), on top of the automatic
   checks: completeness against the AOC-1 rows and the directors' certificate, the
   cross-report directorship check, related-party amounts checked on the PDF page, and the
   date rule (`reports/extraction_summary.md`).

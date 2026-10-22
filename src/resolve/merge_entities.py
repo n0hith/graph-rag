@@ -551,6 +551,7 @@ def _relations(facts_by_symbol, companies, fact_mentions, entity_id, by_id, enti
                     role["ceased_on"].add(d["ceased_on"])
                 if d.get("date_conflict"):
                     role["date_conflict"] = d["date_conflict"]
+                role["after_fy_end"] = role.get("after_fy_end", False) or bool(d.get("after_fy_end"))
             elif f.fact_type == "subsidiary":
                 out.append({"type": "SUBSIDIARY_OF", "from": ids["company"], "to": reporter[symbol],
                             "stake_pct": d.get("stake_pct"), "sources": [_source(symbol, f)]})

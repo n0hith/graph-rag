@@ -47,7 +47,7 @@ NODE_PROPS = {
 REL_PROPS = {
     "DIRECTOR_OF": ("roles", "is_independent", "is_executive", "status", "status_conflict", "appointed_on", "ceased_on",
                     "categories", "after_fy_end", "own_report", "din_conflict", "din_resolution"),
-    "KMP_OF": ("role", "status", "status_conflict", "appointed_on", "ceased_on", "date_conflict"),
+    "KMP_OF": ("role", "status", "status_conflict", "appointed_on", "ceased_on", "after_fy_end", "date_conflict"),
     "SUBSIDIARY_OF": ("stake_pct",),
     "AUDITED_BY": ("audit_type", "firm_registration_no"),
     "RELATED_PARTY_TXN": ("nature", "amount_inr_crore", "amount_as_printed"),

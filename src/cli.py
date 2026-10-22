@@ -338,6 +338,21 @@ def check_rpt_amounts_cmd(
                    "relabelled natures keep nature_as_extracted.")
 
 
+@app.command("clean-facts")
+def clean_facts_cmd(apply: bool = typer.Option(True, help="Save the cleaned facts.")) -> None:
+    """Clean saved facts without LLM calls: names (line breaks, footnote markers), other-directorship
+    pages, KMP appointed after the year end, director roles."""
+    from src.eval.rpt_check import clean_saved_facts
+
+    settings = get_settings()
+    results = clean_saved_facts(settings.data_dir / "extracted", settings.sections_dir, _companies(None), apply)
+    for symbol, (notes, counts) in results.items():
+        typer.secho(f"{symbol}: names cleaned: {counts['footnote']} with footnote markers, "
+                    f"{counts['line_break']} with line breaks; {len(notes)} other change(s)", bold=True)
+        for n in notes:
+            typer.echo(f"  {n}")
+
+
 @app.command("check-dates")
 def check_dates_cmd(
     apply: bool = typer.Option(True, help="Replace impossible dates and record date_conflict on the fact."),

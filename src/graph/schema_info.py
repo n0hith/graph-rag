@@ -22,7 +22,8 @@ RELATIONSHIPS = [
      "counts as current); null when only another company's report mentions the seat (own_report = false). "
      "roles, appointed_on, ceased_on and categories are lists. after_fy_end = true if they joined after "
      "March 31, 2024."),
-    ("KMP_OF", "Person", "Company", "role: 'CEO' | 'CFO' | 'Company Secretary'; status, appointed_on, ceased_on."),
+    ("KMP_OF", "Person", "Company", "role: 'CEO' | 'CFO' | 'Company Secretary'; status, appointed_on, ceased_on; "
+     "after_fy_end = true if they took up the role after March 31, 2024."),
     ("SUBSIDIARY_OF", "Company", "Company", "subsidiary -> parent (from the parent's Form AOC-1); stake_pct."),
     ("AUDITED_BY", "Company", "AuditFirm", "audit_type: 'statutory' | 'secretarial'; firm_registration_no."),
     ("RELATED_PARTY_TXN", "Company", "Company|RelatedPartyGroup", "reporting company -> party; nature (e.g. "
@@ -60,7 +61,8 @@ RULES = f"""Rules:
   directors or changes during the year (then also report ceased_on / appointed_on).
 - Directorships at companies outside the five pilot companies come only from another report
   (own_report = false, no status); they count as directorships but have no status.
-- KMP roles (CEO/CFO/Company Secretary) follow the same status rule as directors.
+- KMP roles (CEO/CFO/Company Secretary) follow the same status rule as directors, including
+  coalesce(k.after_fy_end, false) = false for FY2024 holders.
 - Use the entity uids given with the question (MATCH (c:Company {{uid: '...'}})) rather than matching names.
 - Path convention: bind every matched pattern to a path variable (p = ..., p1 = ..., p2 = ...) and return it:
   RETURN p (or collect(p)[..10] AS paths when aggregating), plus the columns that answer the question.
