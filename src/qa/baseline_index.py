@@ -82,27 +82,29 @@ class BaselineIndex:
     def count(self) -> int:
         return self.collection.count()
 
-    def query(self, embedding: list[float], top_k: int) -> list[RetrievedChunk]:
+    def query(self, embedding: list[float], top_k: int, symbols: list[str] | None = None) -> list[RetrievedChunk]:
+        """The `top_k` chunks closest to `embedding`, only from `symbols`' reports if given."""
         if self.collection.count() == 0:
             return []
+        where = {"nse_symbol": {"$in": list(symbols)}} if symbols else None
         result = self.collection.query(
             query_embeddings=[embedding],
             n_results=min(top_k, self.collection.count()),
+            where=where,
         )
-        chunks = []
-        for doc, meta, distance in zip(result["documents"][0], result["metadatas"][0], result["distances"][0]):
-            chunks.append(
-                RetrievedChunk(
-                    company=meta["company"],
-                    nse_symbol=meta["nse_symbol"],
-                    chunk_index=meta["chunk_index"],
-                    page_start=meta["page_start"],
-                    page_end=meta["page_end"],
-                    text=doc,
-                    distance=distance,
-                )
-            )
-        return chunks
+        return [_chunk(doc, meta, distance)
+                for doc, meta, distance in zip(result["documents"][0], result["metadatas"][0], result["distances"][0])]
+
+    def all_chunks(self) -> list[RetrievedChunk]:
+        """Every chunk (for keyword search), in a stable order."""
+        result = self.collection.get(include=["documents", "metadatas"])
+        chunks = [_chunk(doc, meta, 0.0) for doc, meta in zip(result["documents"], result["metadatas"])]
+        return sorted(chunks, key=lambda c: (c.nse_symbol, c.chunk_index))
+
+
+def _chunk(doc: str, meta: dict, distance: float) -> RetrievedChunk:
+    return RetrievedChunk(company=meta["company"], nse_symbol=meta["nse_symbol"], chunk_index=meta["chunk_index"],
+                          page_start=meta["page_start"], page_end=meta["page_end"], text=doc, distance=distance)
 
 
 @dataclass(frozen=True)

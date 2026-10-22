@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     baseline_chunk_tokens: int = Field(default=500, gt=0, description="Target chunk size in embedding-model tokens")
     baseline_chunk_overlap_tokens: int = Field(default=60, ge=0, description="Token overlap between consecutive chunks")
-    baseline_top_k: int = Field(default=6, gt=0, description="Chunks retrieved per question")
+    baseline_top_k: int = Field(default=12, gt=0, description="Chunks given to the answer model per question")
 
     # Paths and logging
     data_dir: Path = PROJECT_ROOT / "data"

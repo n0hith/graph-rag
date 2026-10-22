@@ -16,16 +16,9 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel
 
 from src.llm.client import LLMClient
+from src.qa.company_filter import PILOT_ALIASES
 from src.resolve.normalize import company_name, fold_lookalikes, person_tokens
 
-# Common names and tickers of the five pilot companies -> NSE symbol.
-PILOT_ALIASES = {
-    "TCS": ("tcs", "tata consultancy services", "tata consultancy", "tata consultancy services limited"),
-    "TATAMOTORS": ("tata motors", "tamo", "tml", "tatamotors", "tata motors limited", "tata motors ltd"),
-    "TATASTEEL": ("tata steel", "tatasteel", "tata steel limited", "tata steel ltd"),
-    "TATACONSUM": ("tata consumer", "tata consumer products", "tcpl", "tataconsum", "tata consumer products limited"),
-    "INFY": ("infosys", "infy", "infosys limited", "infosys ltd"),
-}
 FUZZY_MARGIN = 1.3  # a fuzzy hit must outscore the next by this factor
 LUCENE_SPECIAL = re.compile(r'([+\-!(){}\[\]^"~*?:\\/&|])')
 

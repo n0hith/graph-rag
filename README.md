@@ -90,7 +90,7 @@ python -m src.cli --help
 | `download` | 1 | Fetch the PDFs in `companies.csv` and verify them against `data/pdf_checksums.json` |
 | `sectionize` | 1 | Find the governance report, AOC-1, auditor's report, secretarial audit and related-party note |
 | `baseline-index`, `ask --mode baseline` | 2 | Plain RAG baseline |
-| `extract` | 3 | Fact extraction (`--section related_party` re-runs one section; `--sample-size 0` leaves the hand-check sample alone) |
+| `extract` | 3 | Fact extraction (`--section related_party` re-runs one section; `--sample-size 0` skips writing a sample CSV) |
 | `check-directorships` | 3 | Check each report's "directorship in other listed entity" claims against the other pilot company's own director list |
 | `check-rpt-amounts` | 3 | Check related-party amounts on the PDF page (party's row, FY2024 column, nature heading), record `amount_as_printed`, relabel a nature found under another printed heading, remove nil rows and struck-off companies; no LLM calls |
 | `check-dates` | 3 | Replace appointment/cessation dates later than the report's own date with the same person's other mention (`date_conflict` keeps the printed one); no LLM calls |
@@ -183,6 +183,10 @@ Not yet available (Phase 7).
   the subsidiary's name, so they're never confused with the parent's own report.
 - Auditors of subsidiaries are usually not named in the parent company's report, so questions
   about them are marked unanswerable from this data.
+- Extracted facts were not hand-verified on a sample. Their accuracy rests on automatic
+  checks: completeness against the AOC-1 rows and the directors' certificate, the
+  cross-report directorship check, related-party amounts checked on the PDF page, and the
+  date rule (`reports/extraction_summary.md`).
 
 ## Phase 2: plain RAG baseline
 
@@ -200,8 +204,9 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
   calls, no cost) and stored in a persistent ChromaDB collection under `data/vector_store/`.
   Re-running `baseline-index` skips a company whose PDF (by sha256) and embedding model
   haven't changed.
-- `ask --mode baseline` embeds the question, retrieves the top-k chunks (`GEMINI_MODEL_LIMITS`
-  permitting), and asks `GEMINI_QA_MODEL` to answer using only those excerpts, citing
+- `ask --mode baseline` retrieves 12 chunks by hybrid search (embeddings + BM25 keywords, only
+  from the companies the question names, if any) and asks `GEMINI_QA_MODEL` (temperature 0) to
+  answer using only those excerpts, citing
   `[Company, p.N]` for every claim. The CLI also prints the distinct (company, page) sources used.
 - This baseline is what the graph pipeline (Phase 6+) has to beat on multi-hop questions; it's
   built to be a fair, reasonably strong baseline, not a strawman.
@@ -238,9 +243,10 @@ the system was tuned on them, so they would overstate its accuracy.
 
 ### To do before Phase 7
 
-- Strengthen the baseline so the eventual graph-vs-baseline comparison is fair: retrieve more
-  chunks, add keyword (BM25-style) search alongside the semantic search and combine the two
-  (hybrid search), and filter to a company's own chunks first when the question names one.
+- Done (Phase 7 step 1): the baseline now uses hybrid search (embeddings + BM25, reciprocal
+  rank fusion keeping each method's top hits), 12 chunks, a company filter when the question
+  names pilot companies (an equal share each for several), and the graph route's answer model
+  at temperature 0. Before/after on the three early questions: `src/eval/baseline_notes.md`.
 - `GEMINI_QA_MODEL` is currently `gemini-3.5-flash-lite` (free tier) because `gemini-3.8-flash`'s
   free daily quota (~20 requests) is too small for evaluation-scale question answering. Before
   Phase 7, we may enable billing on the API key's Google Cloud project to use a stronger QA
