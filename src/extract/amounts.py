@@ -315,6 +315,7 @@ class Heading:
     column: int  # 0 = left half of the page, 1 = right (Infosys prints two tables side by side)
     y: float
     nature: str  # _key() of the heading text
+    text: str = ""  # the heading as printed
 
 
 def _column(words: list[Word], w: Word) -> int:
@@ -335,28 +336,28 @@ def _has_own_figures(words: list[Word], label: list[Word]) -> bool:
 def find_headings(words_by_page: dict[int, list[Word]], natures: set[str]) -> list[Heading]:
     """Where each nature the facts name is printed as a heading (a line with no figures),
     in reading order: page, then column, then top to bottom."""
-    out = set()
+    found: list[tuple[Heading, frozenset]] = []
     for page, words in words_by_page.items():
         for nature in natures:
             for label in find_label(words, nature):
                 if not _has_own_figures(words, label):
-                    out.add(Heading(page, _column(words, label[0]), _bbox(label)[1], _key(nature)))
-    # One heading can contain another nature's text ("Purchases of goods and services
-    # (including reimbursements) and net of cost recovery"); the longest reading wins.
-    longest: dict[tuple, Heading] = {}
-    for h in out:
-        at = (h.page, h.column, round(h.y))
-        if at not in longest or len(h.nature) > len(longest[at].nature):
-            longest[at] = h
-    return sorted(longest.values(), key=lambda h: (h.page, h.column, h.y))
+                    heading = Heading(page, _column(words, label[0]), _bbox(label)[1], _key(nature),
+                                      " ".join(w.text for w in label))
+                    found.append((heading, frozenset((page, id(w)) for w in label)))
+    # One heading can contain another nature's text: "Loans given" inside "Loans and
+    # advances in the nature of loans given to subsidiaries", "Purchases of goods and
+    # services (including reimbursements)" inside "... and net of cost recovery". Only the
+    # longest printed heading counts.
+    kept = {h for h, ids in found if not any(ids < other for _, other in found)}
+    return sorted(kept, key=lambda h: (h.page, h.column, h.y))
 
 
-def heading_above(headings: list[Heading], page: int, column: int, y: float) -> str | None:
+def heading_above(headings: list[Heading], page: int, column: int, y: float) -> Heading | None:
     """The nearest heading before a row in reading order. A table can carry on into the
     next column or page under the same heading (Infosys p.254 continues p.253's 'Unbilled
     revenues')."""
     before = [h for h in headings if (h.page, h.column, h.y) < (page, column, y)]
-    return before[-1].nature if before else None
+    return before[-1] if before else None
 
 
 def _nature_on_row(words: list[Word], label: list[Word], nature: str) -> bool:
@@ -372,7 +373,11 @@ class RowMatch:
     page: int
     cell: Cell
     basis: str
-    heading: str | None
+    heading: Heading | None
+
+    @property
+    def nature(self) -> str | None:
+        return self.heading.nature if self.heading else None
 
 
 def _party_rows(fact: Fact, words_by_page: dict[int, list[Word]], headings: list[Heading]):
@@ -389,8 +394,10 @@ def _party_rows(fact: Fact, words_by_page: dict[int, list[Word]], headings: list
                 if cells or basis != "no figures on the row":
                     y = _bbox(label)[1]
                     heading = heading_above(headings, page, _column(words, label[0]), y)
-                    on_row = _nature_on_row(words, label, fact.data.get("nature") or "")
-                    yield page, cells, basis, _key(fact.data.get("nature") or "") if on_row else heading
+                    if _nature_on_row(words, label, fact.data.get("nature") or ""):
+                        nature = fact.data.get("nature") or ""
+                        heading = Heading(page, _column(words, label[0]), y, _key(nature), nature)
+                    yield page, cells, basis, heading
 
 
 def _matrix_match(fact: Fact, words: list[Word], previous_page: list[Word]) -> tuple[Cell | None, str, list[str]]:
@@ -418,16 +425,32 @@ def check_fact(fact: Fact, words_by_page: dict[int, list[Word]], headings: list[
     List tables: the amount must be the FY2024 figure on a row labelled with the party. A
     party often has rows in several tables (receivables, other financial assets, sale of
     services, ...), so where its nature is printed as a heading, the row must sit under that
-    heading; otherwise only a party with a single row in the section can pass."""
+    heading; otherwise only a party with a single row in the section can pass.
+
+    Statuses: "pass"; "nil" (the FY2024 cell is a dash: no transaction that year, whether
+    the fact's amount is 0 or missing); "relabel" (the amount is on the party's row under
+    exactly one other printed heading, given in `detail`: the fact's nature is wrong);
+    "fail"; "no_amount" (missing amount, and no dash found either)."""
     amount = fact.data.get("amount_inr_crore")
     if amount is None:
-        return "no_amount", None, None, "", ""
+        as_nil = type(fact)(**{**fact.__dict__, "data": {**fact.data, "amount_inr_crore": 0.0}})
+        result = check_fact(as_nil, words_by_page, headings)
+        return result if result[0] == "nil" else ("no_amount", None, None, "", "")
+    status, page, cell, basis, detail = _check_amount(fact, words_by_page, headings)
+    if status == "pass" and cell.value is None:
+        return "nil", page, cell, basis, detail
+    return status, page, cell, basis, detail
+
+
+def _check_amount(fact: Fact, words_by_page: dict[int, list[Word]], headings: list[Heading]
+                  ) -> tuple[str, int | None, Cell | None, str, str]:
+    amount = fact.data["amount_inr_crore"]
     nature = _key(fact.data.get("nature") or "")
     rows = list(_party_rows(fact, words_by_page, headings))
     matches = [RowMatch(page, c, f"party row, {basis}", heading) for page, cells, basis, heading in rows
                for c in cells if _matches(amount, c.value)]
     printed_as_heading = any(h.nature == nature for h in headings)
-    under = [m for m in matches if m.heading == nature]
+    under = [m for m in matches if m.nature == nature]
     if under:
         m = min(under, key=lambda m: (m.page != fact.page, abs(m.page - (fact.page or m.page))))
         return "pass", m.page, m.cell, m.basis + ", under its nature heading" + _moved(m.page, fact), ""
@@ -444,12 +467,17 @@ def check_fact(fact: Fact, words_by_page: dict[int, list[Word]], headings: list[
         if seen:
             seen_by_page[page] = seen
 
+    others = {m.heading.text for m in matches if m.heading}
+    if matches and printed_as_heading and len(others) == 1 and all(m.heading for m in matches):
+        m = matches[0]
+        return ("relabel", m.page, m.cell, m.basis + f", under the printed heading '{m.heading.text}'" + _moved(m.page, fact),
+                m.heading.text)
     if matches:
-        names = sorted({m.heading or "no heading" for m in matches})
+        names = sorted({m.nature or "no heading" for m in matches})
         return "fail", None, None, "", (f"amount is on the party's row only under other heading(s): {', '.join(names)}"
                                         if printed_as_heading else
                                         f"amount is on one of the party's {len(rows)} rows, nature not printed as a heading")
-    figures = [f"p.{page} [{heading or '-'}]: {', '.join(c.printed for c in cells) or basis}"
+    figures = [f"p.{page} [{heading.nature if heading else '-'}]: {', '.join(c.printed for c in cells) or basis}"
                for page, cells, basis, heading in rows] + [f"p.{p}: {', '.join(s)}" for p, s in seen_by_page.items()]
     if figures:
         return "fail", None, None, "", "FY2024 figures on the fact's rows: " + "; ".join(figures[:6])
@@ -473,12 +501,61 @@ def check_amounts(facts: list[Fact], pdf_path: Path, pages: list[int]
     return [(i, *check_fact(f, words_by_page, headings)) for i, f in rpt]
 
 
-def with_checked_amount(f: Fact, page: int | None, cell: Cell | None) -> Fact:
+def with_checked_amount(f: Fact, page: int | None, cell: Cell | None, nature: str | None = None) -> Fact:
     """`f` with `amount_as_printed` set from a passing check (and moved to the page its row
-    is on), or cleared."""
+    is on), or cleared. With `nature` (a "relabel" result), the nature becomes that printed
+    heading and the extracted one is kept as `nature_as_extracted`."""
     from src.extract.extractor import Fact
 
     data = {k: v for k, v in f.data.items() if k != "amount_as_printed"}
     if cell:
         data["amount_as_printed"] = cell.printed
+    if nature and nature != data.get("nature"):
+        data.setdefault("nature_as_extracted", data.get("nature"))
+        data["nature"] = nature
     return Fact(**{**f.__dict__, "data": data, "page": page if cell else f.page})
+
+
+STRUCK_OFF_RE = re.compile(r"transactions\s+with\s+(?:the\s+)?(?:companies\s+)?struck[\s-]+off\s+compan", re.I)
+
+
+def in_struck_off_table(f: Fact, pages: list[dict]) -> bool:
+    """Whether `f`'s party is listed after a "Transactions with struck off companies" heading
+    on its page (Tata Motors note 45, inside the related-party section): those companies are
+    external vendors and customers, not related parties."""
+    text = " ".join(next((p["text"] for p in pages if p["page"] == f.page), "").split())
+    heading = STRUCK_OFF_RE.search(text)
+    at = text.find(" ".join(f.evidence.split()))
+    return bool(heading) and at >= heading.start()
+
+
+NIL_REASON = "nil (–) in FY2024: not a transaction"
+STRUCK_OFF_REASON = "struck-off company (external vendor/customer), not a related party"
+
+
+def apply_checks(facts: list[Fact], pdf_path: Path, pages: list[dict]
+                 ) -> tuple[list[Fact], list[tuple[Fact, str]], list[str]]:
+    """Run the page check over a company's facts and act on it: struck-off companies and nil
+    rows are removed (returned with the reason), a wrong nature is relabelled to the printed
+    heading, passing amounts get `amount_as_printed`. Returns (facts kept, removed, notes)."""
+    removed = [(f, STRUCK_OFF_REASON) for f in facts
+               if f.fact_type == "related_party" and in_struck_off_table(f, pages)]
+    gone = {id(f) for f, _ in removed}
+    facts = [f for f in facts if id(f) not in gone]
+    kept, notes, drop = list(facts), [], set()
+    for i, status, page, cell, basis, detail in check_amounts(facts, pdf_path, [p["page"] for p in pages]):
+        f = facts[i]
+        label = f"{f.data.get('party_name')} / {f.data.get('nature')} = {f.data.get('amount_inr_crore')} (p.{f.page})"
+        if status == "nil":
+            removed.append((f, NIL_REASON))
+            drop.add(i)
+        elif status == "relabel":
+            kept[i] = with_checked_amount(f, page, cell, detail)
+            notes.append(f"nature relabelled to the printed heading: {label} -> '{detail}'")
+        else:
+            kept[i] = with_checked_amount(f, page, cell)
+            if status == "fail":
+                notes.append(f"amount not verified on the page: {label}: {detail}")
+            elif status == "no_amount":
+                notes.append(f"related party with no amount and no nil cell found: {label}")
+    return [f for i, f in enumerate(kept) if i not in drop], removed, notes

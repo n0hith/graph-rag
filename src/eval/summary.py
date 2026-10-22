@@ -16,6 +16,7 @@ from pathlib import Path
 from src.eval.completeness import check_company
 from src.eval.directorship_check import check_directorships
 from src.eval.rpt_check import check_related_party
+from src.extract.amounts import NIL_REASON, STRUCK_OFF_REASON
 from src.extract.extractor import load_facts
 from src.ingest.companies import Company
 
@@ -110,22 +111,44 @@ def write_summary(path: Path, extracted_dir: Path, sections_dir: Path, companies
         amount_checks = check_related_party(extracted_dir, sections_dir, raw_pdf_dir, companies, apply=False)
         by = Counter((r.symbol, r.status) for r in amount_checks)
         bases = Counter((r.symbol, r.basis.split(";")[0]) for r in amount_checks if r.status == "pass")
+        removed = Counter((c.nse_symbol, d["reason"]) for c in companies for d in runs[c.nse_symbol].get("dropped", [])
+                          if d["fact_type"] == "related_party")
         lines += ["## Related-party amounts checked on the page (no LLM)", "",
                   "Each amount must be the FY2024 figure on its party's row (matrix tables: the nature's row, under the "
                   "party's column), and in list tables the row must sit under the fact's nature heading (carried over a "
                   "column or page break). Passing facts carry `amount_as_printed`. Amounts are compared exactly, in crore "
-                  "as printed; a printed dash counts as nil (0).", "",
-                  "| Company | Related-party facts | Pass | of which nil (-) | Fail | No amount |", "|---|---|---|---|---|---|"]
+                  "as printed. A fact whose amount sits under exactly one other printed heading is relabelled to it "
+                  "(`nature_as_extracted` keeps the old nature). Rows whose FY2024 cell is a dash (nil) are not stored as "
+                  "transactions, nor are the companies in Tata Motors' 'Transactions with struck off companies' table "
+                  "(external vendors and customers).", "",
+                  "| Company | Related-party facts | Pass | Relabelled | Fail | No amount | Nil rows removed "
+                  "| Struck-off removed |", "|---|---|---|---|---|---|---|---|"]
         for c in companies:
             n = sum(r.symbol == c.nse_symbol for r in amount_checks)
-            nil = sum(r.symbol == c.nse_symbol and r.amount_as_printed in ("-", "–", "—") for r in amount_checks)
-            lines.append(f"| {c.nse_symbol} | {n} | {by[(c.nse_symbol, 'pass')]} | {nil} | {by[(c.nse_symbol, 'fail')]} "
-                         f"| {by[(c.nse_symbol, 'no_amount')]} |")
+            relabelled = sum(f.fact_type == "related_party" and "nature_as_extracted" in f.data for f in facts[c.nse_symbol])
+            lines.append(f"| {c.nse_symbol} | {n} | {by[(c.nse_symbol, 'pass')]} | {relabelled} | {by[(c.nse_symbol, 'fail')]} "
+                         f"| {by[(c.nse_symbol, 'no_amount')]} | {removed[(c.nse_symbol, NIL_REASON)]} "
+                         f"| {removed[(c.nse_symbol, STRUCK_OFF_REASON)]} |")
         lines += ["", "How each pass was decided:", ""]
         lines += _bullets([f"{symbol}: {basis}: {n}" for (symbol, basis), n in sorted(bases.items())])
+        relabels = [f"{c.nse_symbol} p.{f.page}: {f.data['party_name']} = {f.data.get('amount_as_printed')}: "
+                    f"'{f.data['nature_as_extracted']}' -> '{f.data['nature']}'"
+                    for c in companies for f in facts[c.nse_symbol] if "nature_as_extracted" in f.data]
+        lines += ["", f"Relabelled ({len(relabels)}):", ""] + (_bullets(relabels) if relabels else ["None."])
         fails = [f"{r.symbol} p.{r.cited_page}: {r.party_name} / {r.nature} = {r.amount}: {r.detail}"
-                 for r in amount_checks if r.status == "fail"]
-        lines += ["", f"Failing ({len(fails)}):", ""] + (_bullets(fails) if fails else ["None."]) + [""]
+                 for r in amount_checks if r.status in ("fail", "relabel", "nil", "no_amount")]
+        lines += ["", f"Not passing ({len(fails)}):", ""] + (_bullets(fails) if fails else ["None."]) + [""]
+
+    # ---- impossible dates
+    conflicts = [(c.nse_symbol, f) for c in companies for f in facts[c.nse_symbol] if f.data.get("date_conflict")]
+    lines += ["## Dates later than the report itself", "",
+              "A date after the report's own date (its PDF's last-saved date) cannot be right; the same person's other "
+              "mention is used and the printed date kept as `date_conflict`.", ""]
+    lines += _bullets([f"{symbol}: {f.fact_type} {f.data.get('person_name')} (p.{f.page}): {d['field']} printed "
+                       f"'{d['as_printed']}', {d['reason']}; now '{d['other_mention']}' as on p."
+                       f"{', p.'.join(map(str, d['other_pages']))}"
+                       for symbol, f in conflicts for d in [f.data["date_conflict"]]]) or ["None."]
+    lines.append("")
 
     # ---- cross-report directorships
     checks = check_directorships(extracted_dir, companies)

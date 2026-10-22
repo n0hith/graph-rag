@@ -4,7 +4,7 @@ from positioned words, laid out like the pilot reports' tables."""
 
 from __future__ import annotations
 
-from src.extract.amounts import Word, _matches, check_fact, find_headings
+from src.extract.amounts import Word, _matches, check_fact, find_headings, in_struck_off_table
 from src.extract.extractor import Fact
 
 _line_ids = iter(range(10_000))
@@ -32,7 +32,7 @@ def rpt(party: str, nature: str, amount: float | None, page_no: int = 1) -> Fact
 
 def run(fact: Fact, words_by_page: dict[int, list[Word]]):
     natures = {"Trade receivables", "Other financial assets", "Unbilled revenues", "Sale of products",
-               "Purchase of goods", fact.data["nature"]}
+               "Purchase of goods", "Loans given", fact.data["nature"]}
     return check_fact(fact, words_by_page, find_headings(words_by_page, natures))
 
 
@@ -65,10 +65,10 @@ def test_previous_year_figure_fails():
     assert status == "fail"
 
 
-def test_amount_under_another_heading_fails():
+def test_amount_under_another_heading_is_relabelled_to_that_heading():
     # 2 is Panaya's FY2024 trade receivable; its other-financial-assets figure is 6.
-    status, _, _, _, detail = run(rpt("Panaya Ltd", "Other financial assets", 2.0), {1: INFOSYS_P1})
-    assert status == "fail" and "tradereceivables" in detail
+    status, _, cell, _, heading = run(rpt("Panaya Ltd", "Other financial assets", 2.0), {1: INFOSYS_P1})
+    assert (status, cell.printed, heading) == ("relabel", "2", "Trade receivables")
     status, _, cell, *_ = run(rpt("Panaya Ltd", "Other financial assets", 6.0), {1: INFOSYS_P1})
     assert (status, cell.printed) == ("pass", "6")
 
@@ -83,8 +83,10 @@ def test_heading_carries_over_a_page_break():
     pages = {1: INFOSYS_P1, 2: INFOSYS_P2}
     status, page_no, cell, *_ = run(rpt("Panaya Ltd", "Unbilled revenues", 7.0, page_no=2), pages)
     assert (status, page_no, cell.printed) == ("pass", 2, "7")
-    # The p.254 mislabel: the same row called "Trade receivables" doesn't pass.
-    assert run(rpt("Panaya Ltd", "Trade receivables", 7.0, page_no=2), pages)[0] == "fail"
+    # The p.254 mislabel: the same row called "Trade receivables" is put back under the
+    # heading it continues from the previous page.
+    status, _, _, _, heading = run(rpt("Panaya Ltd", "Trade receivables", 7.0, page_no=2), pages)
+    assert (status, heading) == ("relabel", "Unbilled revenues")
 
 
 # Tata Steel-like matrix: parties head the columns, the current year is the row's first line
@@ -118,15 +120,42 @@ def test_wrapped_cell_beside_the_label_pushes_figures_down():
     assert (status, cell.printed) == ("pass", "625.77")
 
 
-def test_nil_cell_matches_zero_and_missing_amount_is_not_checked():
+def test_nil_cell_is_nil_whether_the_amount_is_zero_or_missing():
     tc = page(
         line(80, (420, "2024"), (500, "2023")),
         line(100, (50, "Investment made")),
         line(120, (77, "Tata Starbucks Private Limited"), (420, "-"), (500, "100.00")),
+        line(140, (77, "Tata Smartfoodz Ltd"), (420, "119.91"), (500, "41.50")),
     )
     status, _, cell, *_ = run(rpt("Tata Starbucks Private Limited", "Investment made", 0.0), {1: tc})
-    assert (status, cell.printed) == ("pass", "-")
-    assert run(rpt("Tata Starbucks Private Limited", "Investment made", None), {1: tc})[0] == "no_amount"
+    assert (status, cell.printed) == ("nil", "-")
+    assert run(rpt("Tata Starbucks Private Limited", "Investment made", None), {1: tc})[0] == "nil"
+    # A missing amount where the FY2024 cell holds a figure is not nil.
+    assert run(rpt("Tata Smartfoodz Ltd", "Investment made", None), {1: tc})[0] == "no_amount"
+
+
+def test_a_heading_inside_a_longer_heading_does_not_count_on_its_own():
+    # Infosys p.255: "Loans given" is also a heading elsewhere, but here it is part of
+    # "Loans and advances in the nature of loans given to subsidiaries".
+    infy = page(
+        line(80, (240, "2024"), (285, "2023")),
+        line(100, (40, "Loans and advances in the nature of")),
+        line(110, (40, "loans given to subsidiaries")),
+        line(124, (48, "Infosys Turkey"), (240, "57"), (285, "43")),
+        line(150, (40, "Loans given")),
+        line(164, (48, "Infosys Turkey"), (240, "–"), (285, "38")),
+    )
+    nature = "Loans and advances in the nature of loans given to subsidiaries"
+    status, _, cell, *_ = run(rpt("Infosys Turkey", nature, 57.0), {1: infy})
+    assert (status, cell.printed) == ("pass", "57")
+
+
+def test_struck_off_companies_are_not_related_parties():
+    pages = [{"page": 466, "text": "44. Details of significant investments Tata Motors Body Solutions Limited India "
+                                   "45. Transactions with struck off companies The following table ... "
+                                   "Taxi Films Pvt. Ltd. Services received - 0.00# External vendor"}]
+    assert in_struck_off_table(rpt("Taxi Films Pvt. Ltd.", "Services received", None, page_no=466), pages)
+    assert not in_struck_off_table(rpt("Tata Motors Body Solutions Limited", "Services received", 1.0, page_no=466), pages)
 
 
 def test_amounts_match_as_printed_in_crore_only():

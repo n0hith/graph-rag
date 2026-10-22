@@ -92,7 +92,8 @@ python -m src.cli --help
 | `baseline-index`, `ask --mode baseline` | 2 | Plain RAG baseline |
 | `extract` | 3 | Fact extraction (`--section related_party` re-runs one section; `--sample-size 0` leaves the hand-check sample alone) |
 | `check-directorships` | 3 | Check each report's "directorship in other listed entity" claims against the other pilot company's own director list |
-| `check-rpt-amounts` | 3 | Check related-party amounts on the PDF page (party's row, FY2024 column, nature heading) and record `amount_as_printed`; no LLM calls |
+| `check-rpt-amounts` | 3 | Check related-party amounts on the PDF page (party's row, FY2024 column, nature heading), record `amount_as_printed`, relabel a nature found under another printed heading, remove nil rows and struck-off companies; no LLM calls |
+| `check-dates` | 3 | Replace appointment/cessation dates later than the report's own date with the same person's other mention (`date_conflict` keeps the printed one); no LLM calls |
 | `resolve` | 4 | Entity resolution |
 | `load` | 5 | Load into Neo4j |
 | `ask` | 6 | Graph question answering |

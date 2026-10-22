@@ -22,7 +22,8 @@ from pathlib import Path
 
 from src.ingest.companies import Company
 from src.llm.client import LLMClient, StructuredOutputError
-from src.extract.amounts import check_amounts, with_checked_amount
+from src.extract.amounts import NIL_REASON, STRUCK_OFF_REASON, apply_checks
+from src.extract.dates import fix_impossible_dates, report_date
 from src.extract.prompts import (
     auditor_prompt,
     director_prompt,
@@ -679,22 +680,17 @@ def _drop_repeat_block(facts: list[Fact], pages: list[dict]) -> tuple[list[Fact]
     return kept, dropped
 
 
-def _check_amounts_on_page(facts: list[Fact], section: dict, raw_pdf_dir: Path) -> tuple[list[Fact], list[str]]:
-    """Each related-party amount checked on the PDF page (see `src.extract.amounts`): one on
-    its party's row, in the FY2024 column (and under its nature's heading) gets
-    `amount_as_printed`; the rest are kept without it and listed."""
+def _check_amounts_on_page(facts: list[Fact], section: dict, raw_pdf_dir: Path
+                           ) -> tuple[list[Fact], list[DroppedFact], list[str]]:
+    """Related-party facts checked on the PDF page (see `src.extract.amounts.apply_checks`):
+    passing amounts get `amount_as_printed`, a nature found under another printed heading is
+    relabelled, nil rows and struck-off companies are dropped."""
     pdf_path = raw_pdf_dir / section["source_pdf"]
     if not pdf_path.exists():
-        return facts, [f"related-party amounts not checked: {pdf_path.name} not found"]
-    facts = list(facts)
-    notes = []
-    for i, status, page, cell, _, detail in check_amounts(facts, pdf_path, [p["page"] for p in section["pages"]]):
-        f = facts[i]
-        facts[i] = with_checked_amount(f, page, cell)
-        if status == "fail":
-            notes.append(f"amount not verified on the page: {f.data.get('party_name')} / {f.data.get('nature')} = "
-                         f"{f.data.get('amount_inr_crore')} (p.{f.page}): {detail}")
-    return facts, notes
+        return facts, [], [f"related-party amounts not checked: {pdf_path.name} not found"]
+    kept, removed, notes = apply_checks(facts, pdf_path, section["pages"])
+    dropped = [DroppedFact(f.fact_type, f.section_type, reason, f.evidence, f.data) for f, reason in removed]
+    return kept, dropped, notes
 
 
 def _directorship_facts(director: Fact, entries: list[dict], company: Company) -> list[Fact]:
@@ -827,7 +823,8 @@ def extract_company(
             client, rpt["pages"], related_party_prompt, (RelatedPartyFactList, "related_party_transactions"),
             "related_party", "related_party", company, "extract.related_party",
         )
-        facts, amount_notes = _check_amounts_on_page(_dedupe(facts), rpt, raw_pdf_dir)
+        facts, removed, amount_notes = _check_amounts_on_page(_dedupe(facts), rpt, raw_pdf_dir)
+        dropped.extend(removed)
         result.facts.extend(facts)
         result.dropped.extend(dropped)
         result.calls_used += calls
@@ -839,6 +836,11 @@ def extract_company(
     others_before = sum(f.fact_type == "other_directorship" for f in facts)
     facts, override_log = _apply_merge_overrides(facts, merge_overrides or [], company.nse_symbol)
     facts, notes, not_fy = _finish_directors(facts, cg_pages)
+    any_section = next((sec for sec in [cg, aoc1, rpt] if sec), None)
+    pdf_path = raw_pdf_dir / any_section["source_pdf"] if any_section else None
+    published_on = report_date(pdf_path) if pdf_path and pdf_path.exists() else None
+    facts, date_notes = fix_impossible_dates(facts, published_on, company.nse_symbol, merge_overrides or [])
+    notes = notes + date_notes
     result.facts = facts
     # Removals by a logged rule the previous run didn't apply, so the regression guard
     # doesn't mistake them for facts the new run missed.
@@ -848,6 +850,8 @@ def extract_company(
         f.fact_type == "other_directorship" for f in facts)
     explained[("subsidiary", "subsidiaries_aoc1")] = sum(
         d.reason.startswith("in a summary block") for d in result.dropped)
+    explained[("related_party", "related_party")] = sum(
+        d.reason in (NIL_REASON, STRUCK_OFF_REASON) for d in result.dropped)
     result.explained_removals = dict(explained)
     result.merges = filled + result.merges + override_log
     result.notes = notes + amount_notes

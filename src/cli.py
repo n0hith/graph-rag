@@ -312,7 +312,8 @@ def check_rpt_amounts_cmd(
     apply: bool = typer.Option(True, help="Write amount_as_printed onto the facts that pass."),
 ) -> None:
     """Check each saved related-party amount on the PDF page (no LLM calls): the party's row,
-    the FY2024 column, under its nature heading."""
+    the FY2024 column, under its nature heading. Applying it also relabels a nature found
+    under another printed heading and removes nil rows and struck-off companies."""
     from collections import Counter
 
     from src.eval.rpt_check import check_related_party
@@ -323,14 +324,34 @@ def check_rpt_amounts_cmd(
     counts = Counter((r.symbol, r.status) for r in results)
     typer.secho("Related-party amounts checked on the page:", bold=True)
     for symbol in dict.fromkeys(r.symbol for r in results):
-        moved = sum(r.symbol == symbol and r.page not in (None, r.cited_page) for r in results)
-        nil = sum(r.symbol == symbol and r.amount_as_printed == "-" for r in results)
-        typer.echo(f"  {symbol:<11} pass {counts[(symbol, 'pass')]:<4} (nil '-': {nil}, page corrected: {moved})  "
-                   f"fail {counts[(symbol, 'fail')]:<3} no amount {counts[(symbol, 'no_amount')]}")
+        moved = sum(r.symbol == symbol and r.status != "nil" and r.page not in (None, r.cited_page) for r in results)
+        typer.echo(f"  {symbol:<11} pass {counts[(symbol, 'pass')]:<4} relabel {counts[(symbol, 'relabel')]:<3} "
+                   f"nil {counts[(symbol, 'nil')]:<3} fail {counts[(symbol, 'fail')]:<3} "
+                   f"no amount {counts[(symbol, 'no_amount')]:<3} (page corrected: {moved})")
     for r in results:
-        if r.status == "fail":
-            typer.secho(f"  [fail] {r.symbol} p.{r.cited_page} {r.party_name} / {r.nature} = {r.amount}: {r.detail}",
-                        fg=typer.colors.YELLOW)
+        if r.status in ("fail", "relabel", "no_amount"):
+            typer.secho(f"  [{r.status}] {r.symbol} p.{r.cited_page} {r.party_name} / {r.nature} = {r.amount}: "
+                        f"{r.detail or r.basis}", fg=typer.colors.YELLOW)
+    if apply:
+        typer.echo("Applied: nil rows and struck-off companies removed (reasons in <SYMBOL>.run.json), "
+                   "relabelled natures keep nature_as_extracted.")
+
+
+@app.command("check-dates")
+def check_dates_cmd(
+    apply: bool = typer.Option(True, help="Replace impossible dates and record date_conflict on the fact."),
+) -> None:
+    """Find appointment/cessation dates later than the report's own date (its PDF's) and take
+    the same person's other mention instead (no LLM calls)."""
+    from src.eval.rpt_check import check_dates
+
+    settings = get_settings()
+    notes = check_dates(settings.data_dir / "extracted", settings.raw_pdf_dir, _companies(None),
+                        settings.data_dir / "overrides" / "merges.csv", apply)
+    typer.secho(f"{sum(map(len, notes.values()))} impossible date(s)", bold=True)
+    for symbol, items in notes.items():
+        for n in items:
+            typer.echo(f"  {symbol}: {n}")
 
 
 @app.command("check-dins")
