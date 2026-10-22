@@ -6,9 +6,10 @@
   Consumer's directorship column is on p.290; the facts had the director's attendance-table
   page, p.289).
 - KMP appointed after March 31, 2024 get after_fy_end: true, like directors.
-- Director roles: line breaks collapsed; an empty role, the generic "Director", or a table
-  heading ("Executive Directors") is replaced by the category the report gives for that
-  director ("Independent, Non-Executive Director"); the old value is kept as role_as_extracted.
+- Directors get both a `category` (the independence/executive category the report gives,
+  "Independent, Non-Executive Director") and a `title` (Chairman, CEO & MD, Lead Independent
+  Director, ... where the report prints one next to the name); `role` shows the title if any,
+  else the category. An extracted role that changes is kept as role_as_extracted.
 """
 
 from __future__ import annotations
@@ -110,31 +111,101 @@ def category_role(f) -> str:
     return "Non-Executive, Non-Independent Director"
 
 
-def clean_roles(facts: list) -> tuple[list, list[str]]:
+# Designations a report prints for a director, beyond the independence category.
+TITLE_RE = re.compile(
+    r"(?:Erstwhile\s+)?(?:Non-Executive\s+)?(?:Vice[- ]?)?Chair(?:man|person)\b"
+    r"|Lead Independent Director"
+    r"|Chief Executive Officer\s*(?:&|and)\s*Managing Director|Managing Director\s*(?:&|and)\s*Chief Executive Officer"
+    r"|(?:Erstwhile\s+)?CEO\s*&\s*MD|MD\s*&\s*CEO|COO\s*&\s*ED"
+    r"|Executive Director\s*(?:&|and)\s*(?:Group\s+)?(?:Chief (?:Financial|Operating) Officer|CFO|COO)",
+    re.I)
+
+
+def _is_title(role: str) -> bool:
+    return bool(TITLE_RE.search(role or ""))
+
+
+def _name_variants(name: str) -> list[str]:
+    words = [w for w in name.split() if w.rstrip(".").lower() not in {"mr", "mrs", "ms", "dr", "shri", "smt"}]
+    plain = " ".join(words)
+    return list(dict.fromkeys([plain, plain.replace(". ", " ").replace(".", ""), name]))
+
+
+# In running text, a bare "Chairman"/"Chairperson" next to a name is usually a committee chair
+# ("Michael Gibbs, Chairperson" in a committee list, "O P Bhatt, Chairman of the NRC"). From text,
+# only board designations are taken, and a chair title only as "Name, Chairman," or "Chairman of
+# the Board" ("Nandan M. Nilekani, Chairman, voluntarily chose ...").
+TEXT_TITLE_RE = re.compile(
+    r"Lead Independent Director"
+    r"|Chief Executive Officer\s*(?:&|and)\s*Managing Director|Managing Director\s*(?:&|and)\s*Chief Executive Officer"
+    r"|Executive Director\s*(?:&|and)\s*(?:Group\s+)?(?:Chief (?:Financial|Operating) Officer|CFO|COO)",
+    re.I)
+TEXT_CHAIR_RE = re.compile(r"(?:Vice[- ]?)?Chair(?:man|person)(?=\s*[,.;]|\s+of the Board)", re.I)
+
+
+def find_title(name: str, page_texts: dict[int, str]) -> tuple[str, int] | None:
+    """A board designation printed right after the director's name (see TEXT_TITLE_RE and
+    TEXT_CHAIR_RE): the most frequent one and the first page it is on."""
+    found: dict[str, list[int]] = {}
+    for variant in _name_variants(name):
+        patterns = [re.compile(re.escape(variant) + r"\s*[,–-]?\s*(" + TEXT_TITLE_RE.pattern + r")", re.I),
+                    re.compile(re.escape(variant) + r",\s*(" + TEXT_CHAIR_RE.pattern + r")", re.I)]
+        for pattern in patterns:
+            for page, text in page_texts.items():
+                for m in pattern.finditer(text):
+                    found.setdefault(" ".join(m.group(1).split()), []).append(page)
+    if not found:
+        return None
+    title = max(found, key=lambda t: (len(found[t]), len(t)))
+    return title, min(found[title])
+
+
+def set_titles_and_categories(facts: list, page_texts: dict[int, str] | None = None) -> tuple[list, list[str]]:
+    """Every director gets `category` (the independence/executive category the report gives, e.g.
+    "Independent, Non-Executive Director") and `title` (a designation such as Chairman, CEO & MD,
+    Lead Independent Director, or None). The extracted role is used when it is a title; otherwise
+    the report text is searched for the name followed by a designation. `role` is the title if
+    there is one, else the category. Line breaks are collapsed; role_as_extracted keeps an
+    extracted role that changed."""
     out, notes = [], []
     for f in facts:
         if f.fact_type != "director":
             out.append(f)
             continue
         raw = f.data.get("role") or ""
-        role = " ".join(raw.split())
-        if not role or GENERIC_ROLE_RE.match(role):
-            role = category_role(f)
-            notes.append(f"role: {f.data['person_name']}: {raw!r} -> {role!r}")
-        if role != raw:
-            data = {**f.data, "role": role}
-            if raw and " ".join(raw.split()) != role:
-                data.setdefault("role_as_extracted", raw)
+        extracted = f.data.get("role_as_extracted") or raw
+        candidates = [" ".join(r.split()) for r in (raw, extracted) if r]
+        title = next((r for r in candidates if _is_title(r)), f.data.get("title"))
+        source = "extracted role" if title else None
+        if not title and page_texts:
+            hit = find_title(f.data["person_name"], page_texts)
+            if hit:
+                title, page = hit
+                source = f"report text p.{page}"
+        category = category_role(f)
+        role = title or category
+        data = {**f.data, "title": title, "category": category, "role": role}
+        if source and source != "extracted role":
+            data["title_source"] = source
+        if raw and " ".join(raw.split()) not in (role, title):
+            data.setdefault("role_as_extracted", raw)
+        if data != f.data:
+            if title and title != f.data.get("title"):
+                notes.append(f"title: {f.data['person_name']}: {title!r} ({source})")
             out.append(_with_data(f, data=data))
         else:
             out.append(f)
     return out, notes
 
 
-def clean_facts(facts: list, cg_pages: list[dict]) -> tuple[list, list[str], dict]:
-    """All of the above. Returns (facts, notes, name counts)."""
+def clean_facts(facts: list, cg_pages: list[dict], report_pages: dict[int, str] | None = None
+                ) -> tuple[list, list[str], dict]:
+    """All of the above. `report_pages` (page -> text of the whole report) is where director
+    titles are looked up; without it, the governance section's pages are used. Returns (facts,
+    notes, name counts)."""
     facts, counts = clean_names(facts)
     facts, moved = relocate_directorships(facts, cg_pages)
     facts, kmp = mark_kmp_after_fy_end(facts)
-    facts, roles = clean_roles(facts)
+    texts = report_pages or {p["page"]: _flat(p["text"]) for p in cg_pages}
+    facts, roles = set_titles_and_categories(facts, texts)
     return facts, moved + kmp + roles, counts

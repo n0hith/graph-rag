@@ -18,7 +18,9 @@ NODE_NOTES = {
                          "(e.g. 'Subsidiaries', 'Associates', 'Promoter'), not one company; reported_by = that report.",
 }
 RELATIONSHIPS = [
-    ("DIRECTOR_OF", "Person", "Company", "board seat. status: 'current' or 'ceased' ('appointed' during the year "
+    ("DIRECTOR_OF", "Person", "Company", "board seat. title: the designation the report prints (Chairman, "
+     "Vice-Chairman, CEO & MD, Lead Independent Director, ...) or null; category: independence/executive category "
+     "(e.g. 'Independent, Non-Executive Director'). status: 'current' or 'ceased' ('appointed' during the year "
      "counts as current); null when only another company's report mentions the seat (own_report = false). "
      "roles, appointed_on, ceased_on and categories are lists. after_fy_end = true if they joined after "
      "March 31, 2024."),

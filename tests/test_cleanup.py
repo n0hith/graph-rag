@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from src.extract.cleanup import clean_facts, clean_name, clean_roles, mark_kmp_after_fy_end, relocate_directorships
+from src.extract.cleanup import (
+    clean_facts,
+    clean_name,
+    find_title,
+    mark_kmp_after_fy_end,
+    relocate_directorships,
+    set_titles_and_categories,
+)
 from src.extract.extractor import Fact
 
 
@@ -37,21 +44,38 @@ def test_kmp_appointed_after_the_year_end_is_marked():
     assert a.data["after_fy_end"] is True and "after_fy_end" not in d.data and len(notes) == 1
 
 
-def test_roles_from_the_reports_category_replace_empty_generic_and_heading_roles():
+def test_directors_keep_both_a_category_and_a_title():
     tcs = fact("director", {"person_name": "Don Callahan", "role": "", "is_independent": True, "is_executive": False},
                evidence="Don Callahan^^^ DIN 08326836 | Independent, Non-Executive")
-    heading = fact("director", {"person_name": "Koushik Chatterjee", "role": "Executive Directors",
+    heading = fact("director", {"person_name": "Mr. Koushik Chatterjee", "role": "Executive Directors",
                                 "is_independent": False, "is_executive": True})
-    generic = fact("director", {"person_name": "Nandan M. Nilekani", "role": "Director", "is_independent": False,
-                                "is_executive": False})
-    wrapped = fact("director", {"person_name": "Sunil D'Souza", "role": "Managing Director \n& Chief Executive \nOfficer"})
-    chairman = fact("director", {"person_name": "N Chandrasekaran", "role": "Chairman"})
-    out, _ = clean_roles([tcs, heading, generic, wrapped, chairman])
-    assert [f.data["role"] for f in out] == ["Independent, Non-Executive Director", "Executive Director",
-                                             "Non-Executive, Non-Independent Director",
-                                             "Managing Director & Chief Executive Officer", "Chairman"]
+    chairman = fact("director", {"person_name": "Nandan M. Nilekani", "role": "Director", "is_independent": False,
+                                 "is_executive": False})
+    ceo = fact("director", {"person_name": "Sunil D'Souza", "role": "Managing Director \n& Chief Executive \nOfficer",
+                            "is_independent": False, "is_executive": True})
+    committee_chair = fact("director", {"person_name": "Michael Gibbs", "role": "Director", "is_independent": True,
+                                        "is_executive": False})
+    pages = {11: "Mr. Koushik Chatterjee Executive Director & Chief Financial Officer",
+             99: "1. Michael Gibbs, Chairperson 2. Bobby Parikh",
+             103: "Nandan M. Nilekani, Chairman, voluntarily chose not to receive any remuneration"}
+    out, _ = set_titles_and_categories([tcs, heading, chairman, ceo, committee_chair], pages)
+    got = [(f.data["title"], f.data["category"], f.data["role"]) for f in out]
+    assert got == [
+        (None, "Independent, Non-Executive Director", "Independent, Non-Executive Director"),
+        ("Executive Director & Chief Financial Officer", "Executive Director", "Executive Director & Chief Financial Officer"),
+        ("Chairman", "Non-Executive, Non-Independent Director", "Chairman"),
+        ("Managing Director & Chief Executive Officer", "Executive Director", "Managing Director & Chief Executive Officer"),
+        (None, "Independent Director", "Independent Director"),  # a committee chair is not a board title
+    ]
     assert out[1].data["role_as_extracted"] == "Executive Directors"
-    assert "role_as_extracted" not in out[3].data  # only whitespace changed
+    assert out[2].data["title_source"] == "report text p.103"
+
+
+def test_committee_chair_mentions_are_not_titles():
+    pages = {101: "O P Bhatt, Chairman of the NRC, was present", 235: "Mr. Deepak Kapoor (Chairperson)"}
+    assert find_title("O P Bhatt", pages) is None
+    assert find_title("Mr. Deepak Kapoor", pages) is None
+    assert find_title("Nandan M. Nilekani", {1: "Nandan M. Nilekani, Chairman of the Board"}) == ("Chairman", 1)
 
 
 def test_clean_facts_twice_changes_nothing_the_second_time():
@@ -59,5 +83,6 @@ def test_clean_facts_twice_changes_nothing_the_second_time():
              fact("director", {"person_name": "A B", "role": "Independent Directors", "is_independent": True})]
     once, notes, counts = clean_facts(facts, [])
     twice, notes2, counts2 = clean_facts(once, [])
-    assert counts == {"footnote": 1, "line_break": 1} and notes
+    assert counts == {"footnote": 1, "line_break": 1}
+    assert (once[1].data["category"], once[1].data["title"]) == ("Independent Director", None)
     assert twice == once and notes2 == [] and counts2 == {"footnote": 0, "line_break": 0}

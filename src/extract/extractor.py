@@ -841,7 +841,13 @@ def extract_company(
     pdf_path = raw_pdf_dir / any_section["source_pdf"] if any_section else None
     published_on = report_date(pdf_path) if pdf_path and pdf_path.exists() else None
     facts, date_notes = fix_impossible_dates(facts, published_on, company.nse_symbol, merge_overrides or [])
-    facts, cleanup_notes, _ = clean_facts(facts, cg_pages)
+    report_pages = None
+    if pdf_path and pdf_path.exists():
+        import pymupdf
+
+        with pymupdf.open(pdf_path) as doc:
+            report_pages = {i: " ".join(page.get_text().split()) for i, page in enumerate(doc, 1)}
+    facts, cleanup_notes, _ = clean_facts(facts, cg_pages, report_pages)
     notes = notes + date_notes + [f"cleanup: {n}" for n in cleanup_notes]
     result.facts = facts
     # Removals by a logged rule the previous run didn't apply, so the regression guard

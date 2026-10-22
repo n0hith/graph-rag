@@ -528,6 +528,8 @@ def _relations(facts_by_symbol, companies, fact_mentions, entity_id, by_id, enti
                     seat["own_report"] = True
                     seat["statuses"].append(d.get("status"))
                     seat["roles"].add(d.get("role"))
+                    seat["title"] = d.get("title")
+                    seat["category"] = d.get("category")
                     seat["is_independent"], seat["is_executive"] = d.get("is_independent"), d.get("is_executive")
                     seat["after_fy_end"] |= bool(d.get("after_fy_end"))
                     if d.get("appointed_on"):

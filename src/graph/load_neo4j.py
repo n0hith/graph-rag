@@ -45,7 +45,7 @@ NODE_PROPS = {
 }
 # Relationship properties besides the sources; maps are stored as JSON text.
 REL_PROPS = {
-    "DIRECTOR_OF": ("roles", "is_independent", "is_executive", "status", "status_conflict", "appointed_on", "ceased_on",
+    "DIRECTOR_OF": ("roles", "title", "category", "is_independent", "is_executive", "status", "status_conflict", "appointed_on", "ceased_on",
                     "categories", "after_fy_end", "own_report", "din_conflict", "din_resolution"),
     "KMP_OF": ("role", "status", "status_conflict", "appointed_on", "ceased_on", "after_fy_end", "date_conflict"),
     "SUBSIDIARY_OF": ("stake_pct",),

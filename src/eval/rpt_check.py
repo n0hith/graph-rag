@@ -75,18 +75,29 @@ def check_dates(extracted_dir: Path, raw_pdf_dir: Path, companies: list[Company]
     return out
 
 
+def report_text(pdf_path: Path) -> dict[int, str] | None:
+    """page -> text (whitespace collapsed) of the whole report, or None without the PDF."""
+    if not pdf_path.exists():
+        return None
+    import pymupdf
+
+    with pymupdf.open(pdf_path) as doc:
+        return {i: " ".join(page.get_text().split()) for i, page in enumerate(doc, 1)}
+
+
 def clean_saved_facts(extracted_dir: Path, sections_dir: Path, companies: list[Company],
-                      apply: bool = True) -> dict[str, tuple[list[str], dict]]:
+                      apply: bool = True, raw_pdf_dir: Path | None = None) -> dict[str, tuple[list[str], dict]]:
     """Names, directorship pages, KMP after the year end, director roles (src/extract/cleanup.py).
     Returns the notes and name counts per company."""
     out = {}
+    raw_pdf_dir = raw_pdf_dir or sections_dir.parent / "raw_pdfs"
     for c in companies:
         f_path = extracted_dir / f"{c.nse_symbol}.jsonl"
         s_path = sections_dir / c.nse_symbol / "corporate_governance.json"
         if not f_path.exists():
             continue
         pages = json.loads(s_path.read_text(encoding="utf-8"))["pages"] if s_path.exists() else []
-        facts, notes, counts = clean_facts(load_facts(f_path), pages)
+        facts, notes, counts = clean_facts(load_facts(f_path), pages, report_text(raw_pdf_dir / f"{c.nse_symbol}.pdf"))
         out[c.nse_symbol] = (notes, counts)
         if apply:
             save_facts(f_path, facts)
