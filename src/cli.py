@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 import typer
+from pathlib import Path
 from google.genai.errors import APIError
 from pydantic import BaseModel, Field
 
@@ -478,39 +479,112 @@ def baseline_index(
     typer.secho(f"\n{total} chunks stored in {settings.vector_store_dir}", bold=True)
 
 
-@app.command()
-def ask(question: str, mode: str = typer.Option("graph", help="graph, baseline or both")) -> None:
-    """Answer a question."""
-    if mode not in ("baseline", "graph", "both"):
-        typer.secho(f"Unknown mode {mode!r}: use graph, baseline or both.", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    if mode in ("graph", "both"):
-        _not_built(6)
-
+def _baseline_answerer(settings, client):
+    """`question -> (answer, sources)` with the baseline RAG; the embedding model loads on first use."""
     from src.qa.baseline_index import BaselineIndex
     from src.qa.baseline_rag import answer_baseline
     from src.qa.embeddings import SentenceTransformerEmbedder
 
-    settings = get_settings()
-    index = BaselineIndex(settings.vector_store_dir)
-    if index.count() == 0:
-        typer.secho("The baseline index is empty. Run `baseline-index` first.", fg=typer.colors.RED)
+    state = {}
+
+    def answer(question: str) -> tuple[str, list[str]]:
+        if "index" not in state:
+            state["index"] = BaselineIndex(settings.vector_store_dir)
+            state["embedder"] = SentenceTransformerEmbedder(settings.embedding_model)
+        result = answer_baseline(question, state["index"], state["embedder"], client, settings.baseline_top_k)
+        return result.answer, [f"{s.nse_symbol}.pdf {s.page_label}" for s in result.sources]
+
+    return answer
+
+
+def _print_result(result) -> None:
+    typer.secho("\nAnswer:", bold=True)
+    typer.echo(result.answer)
+    typer.secho(f"\nRoute: {result.route}", bold=True)
+    if result.cypher:
+        typer.secho("\nCypher:", bold=True)
+        typer.echo(result.cypher)
+    if result.paths:
+        typer.secho(f"\nPaths ({len(result.paths)}):", bold=True)
+        for path in result.paths[:15]:
+            typer.echo(f"  {path}")
+        if len(result.paths) > 15:
+            typer.echo(f"  ... {len(result.paths) - 15} more")
+    if result.sources:
+        typer.secho("\nSources:", bold=True)
+        typer.echo("  " + "; ".join(result.sources))
+    if result.notes:
+        typer.secho("\nNotes:", bold=True)
+        for n in result.notes:
+            typer.echo(f"  {n}")
+
+
+@app.command()
+def ask(question: str, mode: str = typer.Option("graph", help="graph (falls back to baseline), baseline or both")) -> None:
+    """Answer a question: graph first (with fallback to the baseline), the baseline alone, or both."""
+    from neo4j import GraphDatabase
+
+    from src.qa.answer import QAResult, answer_question
+
+    if mode not in ("baseline", "graph", "both"):
+        typer.secho(f"Unknown mode {mode!r}: use graph, baseline or both.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    embedder = SentenceTransformerEmbedder(settings.embedding_model)
+    settings = get_settings()
     client = build_client(settings, purpose="qa")
+    baseline = _baseline_answerer(settings, client)
     try:
-        result = answer_baseline(question, index, embedder, client, settings.baseline_top_k)
+        if mode in ("graph", "both"):
+            auth = (settings.neo4j_user, settings.neo4j_password.get_secret_value())
+            with GraphDatabase.driver(settings.neo4j_uri, auth=auth, notifications_min_severity="WARNING") as driver:
+                result = answer_question(question, client, driver, baseline)
+            if mode == "both":
+                typer.secho("=== Graph ===", bold=True)
+            _print_result(result)
+        if mode in ("baseline", "both"):
+            if mode == "both":
+                typer.secho("\n=== Baseline ===", bold=True)
+            answer, sources = baseline(question)
+            _print_result(QAResult(question, answer, "baseline", sources=sources))
     except (DailyLimitReached, APIError, LLMError) as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
         raise typer.Exit(code=1)
-
-    typer.secho("\nAnswer:", bold=True)
-    typer.echo(result.answer)
-    if result.sources:
-        typer.secho("\nSources:", bold=True)
-        for s in result.sources:
-            typer.echo(f"  {s.company} ({s.nse_symbol}), {s.page_label}")
     typer.echo(f"\n{client.tracker.summary()}")
+
+
+@app.command("dev-run")
+def dev_run(only: list[str] = typer.Option(None, "--only", help="Question id(s) to run, e.g. dev05.")) -> None:
+    """Run the Phase 6 practice questions (src/qa/dev_questions.jsonl; never reused in Phase 7) and write
+    reports/dev_questions_run.md."""
+    from neo4j import GraphDatabase
+
+    from src.eval.summary import _git_head
+    from src.qa.answer import answer_question
+    from src.qa.dev_run import load_dev_questions, score, write_report
+
+    settings = get_settings()
+    questions = load_dev_questions(Path(__file__).parent / "qa" / "dev_questions.jsonl")
+    if only:
+        questions = [q for q in questions if q["id"] in only]
+    client = build_client(settings, purpose="qa")
+    baseline = _baseline_answerer(settings, client)
+    outcomes = []
+    auth = (settings.neo4j_user, settings.neo4j_password.get_secret_value())
+    with GraphDatabase.driver(settings.neo4j_uri, auth=auth, notifications_min_severity="WARNING") as driver:
+        for q in questions:
+            try:
+                result = answer_question(q["question"], client, driver, baseline)
+            except (DailyLimitReached, APIError, LLMError) as exc:
+                typer.secho(f"Stopped at {q['id']}: {exc}", fg=typer.colors.RED)
+                break
+            outcome = score(q, result)
+            outcomes.append(outcome)
+            colour = typer.colors.GREEN if outcome.passed else typer.colors.YELLOW
+            typer.secho(f"{q['id']} [{result.route}] {'ok' if outcome.passed else 'FAIL: ' + '; '.join(outcome.problems)}",
+                        fg=colour)
+    path = write_report(settings.data_dir.parent / "reports" / "dev_questions_run.md", outcomes,
+                        client.tracker.summary(), _git_head())
+    typer.secho(f"{sum(o.passed for o in outcomes)} of {len(outcomes)} passed. Wrote {path}", bold=True)
+    typer.echo(client.tracker.summary())
 
 
 @app.command("eval")

@@ -158,12 +158,14 @@ SANITY_QUERIES = {
         WHERE size(seats) > 1
         RETURN p.name AS person, p.din AS din, size(seats) AS pilot_companies, seats
         ORDER BY pilot_companies DESC, person""",
+    # Connections over ownership, people and money only (src/graph/schema_info.py CATEGORIES).
     "Companies within 2 steps of both Tata Motors and TCS": """
         MATCH (tm:Company {nse_symbol: 'TATAMOTORS'}), (tcs:Company {nse_symbol: 'TCS'})
         MATCH (c:Company) WHERE c <> tm AND c <> tcs
-          AND EXISTS { MATCH (c)-[*1..2]-(tm) } AND EXISTS { MATCH (c)-[*1..2]-(tcs) }
-        OPTIONAL MATCH p1 = shortestPath((c)-[*1..2]-(tm))
-        OPTIONAL MATCH p2 = shortestPath((c)-[*1..2]-(tcs))
+          AND EXISTS { MATCH (c)-[:SUBSIDIARY_OF|MERGED_INTO|DIRECTOR_OF|KMP_OF|RELATED_PARTY_TXN|GROUP_OF*1..2]-(tm) }
+          AND EXISTS { MATCH (c)-[:SUBSIDIARY_OF|MERGED_INTO|DIRECTOR_OF|KMP_OF|RELATED_PARTY_TXN|GROUP_OF*1..2]-(tcs) }
+        OPTIONAL MATCH p1 = shortestPath((c)-[:SUBSIDIARY_OF|MERGED_INTO|DIRECTOR_OF|KMP_OF|RELATED_PARTY_TXN|GROUP_OF*1..2]-(tm))
+        OPTIONAL MATCH p2 = shortestPath((c)-[:SUBSIDIARY_OF|MERGED_INTO|DIRECTOR_OF|KMP_OF|RELATED_PARTY_TXN|GROUP_OF*1..2]-(tcs))
         RETURN c.name AS company, c.nse_symbol AS pilot,
                [n IN nodes(p1)[1..-1] | n.name] AS via_tata_motors, [r IN relationships(p1) | type(r)] AS tm_path,
                [n IN nodes(p2)[1..-1] | n.name] AS via_tcs, [r IN relationships(p2) | type(r)] AS tcs_path

@@ -96,7 +96,8 @@ python -m src.cli --help
 | `check-dates` | 3 | Replace appointment/cessation dates later than the report's own date with the same person's other mention (`date_conflict` keeps the printed one); no LLM calls |
 | `resolve` | 4 | Entity resolution: people by DIN, then confirmed merges, then name; companies by CIN, then normalised name; look-alikes listed in `data/resolved/uncertain.csv`, not merged. Writes `data/resolved/` and `reports/resolution_summary.md`; no LLM calls |
 | `load` | 5 | Load `data/resolved/` into Neo4j: constraints and indexes, then MERGE on stable ids (re-running changes nothing; facts gone from the data are removed), node/relationship counts and three sanity queries. Stable ids: CIN, DIN, or the id saved in `data/resolved/id_registry.csv` (committed) |
-| `ask` | 6 | Graph question answering |
+| `ask` | 6 | Graph question answering: `--mode graph` (default; falls back to the baseline), `baseline`, or `both` side by side. Shows the answer, route, Cypher, paths and sources (doc + page) |
+| `dev-run` | 6 | Run the practice questions (`src/qa/dev_questions.jsonl`) and write `reports/dev_questions_run.md` |
 | `eval` | 7 | Evaluation against the baseline |
 
 ## Project layout
@@ -206,6 +207,34 @@ python -m src.cli ask --mode baseline "Who audits Tata Consumer Products?"
   built to be a fair, reasonably strong baseline, not a strawman.
 - Early manual test questions and their answers are recorded in `src/eval/baseline_notes.md`
   (candidates for the Phase 7 evaluation set).
+
+## Phase 6: graph question answering
+
+`ask` answers graph first:
+
+1. **Entity lookup** (`src/qa/entity_lookup.py`): the QA model lists the names in the question as
+   written; each is matched to a node through a table of the pilot companies' common names and
+   tickers ("TaMo", "TCS", "Infy") and the `entity_names` full-text index over names and aliases.
+   A name that fits several nodes ("Krishnakumar", "JLR") stops the question and lists them.
+2. **Text to Cypher** (`src/qa/text_to_cypher.py`) with `src/graph/schema_info.py`: schema, the
+   relationship categories (ownership: SUBSIDIARY_OF, MERGED_INTO; people: DIRECTOR_OF, KMP_OF;
+   money: RELATED_PARTY_TXN, GROUP_OF; services: AUDITED_BY; names: FORMERLY_NAMED), the rules
+   ("connected" = ownership, people and money; auditors only when asked; name links never;
+   "the board" = FY2024 directors: current, own report, not joined after the year end), and
+   checked examples. Prose questions are routed to the baseline.
+3. **Guard** (`src/qa/cypher_guard.py`): writes and unknown procedures are refused, a LIMIT is
+   added when missing, the query is EXPLAINed and run in a read-only session with a timeout. A
+   rejected, invalid, failing or empty query is regenerated with the error, up to 2 times; then
+   the baseline answers.
+4. **Answer** (`src/qa/answer.py`): worded from the rows only; paths and sources are read off the
+   paths the query returns.
+
+### Practice questions (not for Phase 7)
+
+`src/qa/dev_questions.jsonl` holds 16 practice questions (1-step, 2-step, 3-step, counting,
+text-only, one ambiguous name) used to build and tune Phase 6; `dev-run` runs them and writes
+`reports/dev_questions_run.md`. **They must not be reused, or reworded, in the Phase 7 test set:**
+the system was tuned on them, so they would overstate its accuracy.
 
 ### To do before Phase 7
 
