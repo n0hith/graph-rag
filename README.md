@@ -256,6 +256,16 @@ the system was tuned on them, so they would overstate its accuracy.
   shared in chat and is only safe to keep while on the free tier), and set a spend cap on that
   project before switching models.
 
+## Phase 7: evaluation (in progress)
+
+- `src/eval/question_plan.md`: the test-set mix, fixed and committed before any question was
+  drafted (15 1hop, 20 2hop, 15 3hop, 20 aggregation, 15 text_only, 10 none/unanswerable).
+- `src/eval/questions.jsonl`: 95 draft questions written from the PDFs (not the graph), each
+  with a proposed gold answer, the PDF pages to check it and `verified: false`. None repeats or
+  rewords a practice question (`src/qa/dev_questions.jsonl`, `src/eval/baseline_notes.md`).
+- No evaluation runs until the gold answers are verified against the PDFs and the scoring rules
+  are agreed in writing. Only verified questions will count.
+
 ## Phase 3: fact extraction
 
 `extract` runs every LLM call at temperature 0, and writes `data/extracted/<SYMBOL>.jsonl`
