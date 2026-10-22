@@ -1,3 +1,17 @@
-nse_symbol,fact_type,from_name,to_din,note
-TATAMOTORS,director,Om Prakash Bhatt,00548091,"Same person as O P Bhatt (DIN 00548091); Tata Motors' own certificate p.264 lists ""Om Prakash Bhatt 00548091"". Confirmed by user 2026-10-21."
-TATACONSUM,director,L. Krishnakumar,00423616,"Same person as Mr. Lakshmanan Krishna Kumar (DIN 00423616, p.317), retired as Executive Director. Confirmed by user 2026-10-21."
+nse_symbol,fact_type,from_name,to_din,note,to_name,action
+TATAMOTORS,director,Om Prakash Bhatt,00548091,"Same person as O P Bhatt (DIN 00548091); Tata Motors' own certificate p.264 lists ""Om Prakash Bhatt 00548091"". Confirmed by user 2026-10-21.",,
+TATACONSUM,director,L. Krishnakumar,00423616,"Same person as Mr. Lakshmanan Krishna Kumar (DIN 00423616, p.317), retired as Executive Director. Confirmed by user 2026-10-21.",,
+TCS,company,TCS Technology Solutions AG,,"TCS AOC-1 note 2, p.307: ""TCS Technology Solutions AG is now renamed as TCS Technology Solution GmbH"". README Phase 4 notes, confirmed by user 2026-10-22.",TCS Technology Solutions GmbH,merge
+TCS,company,TCS Technology Solution GmbH,,"Same rename note, p.307 (singular 'Solution'); the AOC-1 table itself, p.306, prints 'TCS Technology Solutions GmbH'.",TCS Technology Solutions GmbH,merge
+TCS,company,Saudi Desert Rose Holding B.V.,,"TCS AOC-1 note 3, p.307: ""merged with Tata Consultancy Services Netherlands BV w.e.f. August 29, 2023"". Recorded as a merger; the two stay separate companies.",Tata Consultancy Services Netherlands BV,merged_into
+TATASTEEL,person,O. P. Bhatt,00548091,"Review #1: Tata Steel's Board's report p.177 prints ""Mr. O. P. Bhatt (DIN: 00548091)"". Confirmed by user 2026-10-22.",,
+TATAMOTORS,person,P B Balaji,02762983,"Review #2: same person as P. B. Balaji (DIN 02762983, Tata Consumer). Confirmed by user 2026-10-22.",,
+TATAMOTORS,company,TMF Business Services Limited,,"Review #3: different companies; TMF Business Services was formerly called Tata Motors Finance Limited, a name another company now holds. User 2026-10-22.",Tata Motors Finance Limited,split
+TATAMOTORS,company,Jaguar Land Rover Limited,,"Review #4: separate companies; JLR was previously named Jaguar Cars Limited, a name a different company holds now. User 2026-10-22.",Jaguar Cars Limited,formerly_named
+TATACONSUM,company,Tata Consultancy Service Limited,,"Review #5: typo in Tata Consumer's report for TCS. User 2026-10-22.",Tata Consultancy Services Limited,merge
+TCS,company,Tata Consultancy Services (Africa) (PTY) Ltd.,,"Review #6: different companies. User 2026-10-22.",Tata Consultancy Services (South Africa) (PTY) Ltd.,split
+TATAMOTORS,company,TML Business Services Limited,,"Review #7: different companies. User 2026-10-22.",TMF Business Services Limited,split
+TATACONSUM,company,Tata AIG General Insurance Limited,,"Review #8: same company as Tata AIG General Insurance Company Limited. User 2026-10-22.",Tata AIG General Insurance Company Limited,merge
+TATASTEEL,company,Norsk Stal Tynnplater AS,,"Review #9: separate rows 55 and 56 of Tata Steel's AOC-1 (p.264, no country column; both report in NOK, different share capital and accounts). Different companies. User 2026-10-22.",Norsk Stal Tynnplater AB,split
+INFY,company,Infosys McCamish System LLC,,"Review #10: same company as Infosys McCamish Systems LLC. User 2026-10-22.",Infosys McCamish Systems LLC,merge
+INFY,company,Infosys Norway,,"Review #11: same company as Infosys Norway A/S. User 2026-10-22.",Infosys Norway A/S,merge
