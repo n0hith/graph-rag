@@ -1,6 +1,6 @@
 # Extraction summary
 
-Generated 2026-10-22 from code at commit `02dc718`. Raw facts are in `data/extracted/` (gitignored); this file is the tracked record.
+Generated 2026-10-22 from code at commit `f11d3f4`. Raw facts are in `data/extracted/` (gitignored); this file is the tracked record.
 
 ## Facts per company
 
@@ -124,13 +124,10 @@ Dropped: 1 (1× evidence not found in source text)
 Director and amount checks:
 - DIN conflict: Al-Noor Ramji 00230865 vs certificate {'certificate_din': '08326836', 'certificate_page': 117}
 - DIN conflict: Don Callahan 08326836 vs certificate {'certificate_name_for_this_din': 'Al-Noor Ramji', 'certificate_page': 117}
-- cleanup: role: O P Bhatt: '' -> 'Independent, Non-Executive Director'
-- cleanup: role: Aarthi Subramanian: '' -> 'Non-Independent, Non-Executive Director'
-- cleanup: role: Dr Pradeep Kumar Khosla: '' -> 'Independent, Non-Executive Director'
-- cleanup: role: Hanne Sorensen: '' -> 'Independent, Non-Executive Director'
-- cleanup: role: Keki Mistry: '' -> 'Independent, Non-Executive Director'
-- cleanup: role: Al-Noor Ramji: '' -> 'Independent, Non-Executive Director'
-- cleanup: role: Don Callahan: '' -> 'Independent, Non-Executive Director'
+- cleanup: title: N Chandrasekaran: 'Chairman' (extracted role)
+- cleanup: title: K Krithivasan: 'CEO & MD' (extracted role)
+- cleanup: title: N G Subramaniam: 'COO & ED' (extracted role)
+- cleanup: title: Rajesh Gopinathan: 'Erstwhile CEO & MD' (extracted role)
 
 Regressions / key-field changes vs previous run:
 - related_party / related_party: new run found 13, previous run 52; kept the previous facts
@@ -167,6 +164,7 @@ Director and amount checks:
 - not an FY2024 director (no board/attendance/certificate mention): Mr Guenter Butschek 07427375 p.248
 - nature relabelled to the printed heading: Tata Motors Passenger Vehicles Limited / Bill discounted = 995.0 (p.464) -> 'Services rendered'
 - nature relabelled to the printed heading: Tata Passenger Electric Mobility Limited / Bill discounted = 246.56 (p.464) -> 'Services rendered'
+- cleanup: title: Mr N Chandrasekaran: 'Non-Executive Chairman' (extracted role)
 
 Regressions / key-field changes vs previous run:
 - related_party / related_party: new run found 47, previous run 57; kept the previous facts
@@ -184,12 +182,10 @@ Dropped: 29 (29× nil (–) in FY2024: not a transaction)
 Director and amount checks:
 - appointed_on from certificate: Dr. Shekhar C. Mande June 1, 2023 (p.261)
 - ceased_on from text: Mr. O. P. Bhatt June 9, 2023
-- cleanup: role: Mr. Saurabh Agrawal: 'Non-Executive, Non-Independent Directors' -> 'Non-Executive, Non-Independent Director'
-- cleanup: role: Mr. Deepak Kapoor: 'Independent Directors' -> 'Independent Director'
-- cleanup: role: Ms. Farida Khambata: 'Independent Directors' -> 'Independent Director'
-- cleanup: role: Mr. V. K. Sharma: 'Independent Directors' -> 'Independent Director'
-- cleanup: role: Ms. Bharti Gupta Ramola: 'Independent Directors' -> 'Independent Director'
-- cleanup: role: Mr. Koushik Chatterjee: 'Executive Directors' -> 'Executive Director'
+- cleanup: title: Mr. N. Chandrasekaran: 'Chairman' (extracted role)
+- cleanup: title: Mr. Noel Naval Tata: 'Vice-Chairman' (extracted role)
+- cleanup: title: Mr. T. V. Narendran: 'Chief Executive Officer and Managing Director' (extracted role)
+- cleanup: title: Mr. Koushik Chatterjee: 'Executive Director & Chief Financial Officer' (report text p.11)
 
 Regressions / key-field changes vs previous run:
 - related_party / related_party: new run found 47, previous run 76; kept the previous facts
@@ -220,17 +216,10 @@ Merges:
 Director and amount checks:
 - ceased_on from text: Mr. Lakshmanan Krishna Kumar October 31, 2023
 - date after the report's date (2024-05-21): kmp L Krishnakumar ceased_on 'October 31, 2024' (p.295) -> 'October 31, 2023' (as on p.289, p.317)
-- cleanup: directorship page: N. Chandrasekaran / Tata Chemicals Limited: p.289 -> p.290
-- cleanup: directorship page: N. Chandrasekaran / Tata Consultancy Service Limited: p.289 -> p.290
-- cleanup: directorship page: N. Chandrasekaran / Tata Motors Limited: p.289 -> p.290
-- cleanup: directorship page: N. Chandrasekaran / Tata Steel Limited: p.289 -> p.290
-- cleanup: directorship page: N. Chandrasekaran / The Indian Hotels Company Limited: p.289 -> p.290
-- cleanup: directorship page: N. Chandrasekaran / The Tata Power Company Limited: p.289 -> p.290
-- cleanup: directorship page: K. P. Krishnan / Dr. Reddy’s Laboratories Limited: p.289 -> p.290
-- cleanup: directorship page: Siraj Chaudhry / Dhanuka Agritech Limited: p.289 -> p.290
-- cleanup: directorship page: Siraj Chaudhry / Jubilant Ingrevia Limited: p.289 -> p.290
-- cleanup: directorship page: Siraj Chaudhry / Bikaji Foods International Limited: p.289 -> p.290
-- … 7 more (see data/extracted/<SYMBOL>.run.json)
+- cleanup: title: N. Chandrasekaran: 'Chairman' (extracted role)
+- cleanup: title: Sunil D’Souza: 'Managing Director & Chief Executive Officer' (extracted role)
+- cleanup: title: Ajit Krishnakumar: 'Executive Director & Chief Operating Officer' (extracted role)
+- cleanup: title: Mr. Lakshmanan Krishna Kumar: 'Executive Director & Group CFO' (extracted role)
 
 Regressions / key-field changes vs previous run:
 - kmp neelabja chakrabarty / Company Secretary: ceased_on was 'February 07, 2024', now empty
@@ -267,16 +256,9 @@ Director and amount checks:
 - appointed_on from certificate: Nitin Paranjpe January 01, 2024 (p.118)
 - appointed_on from certificate: Helene Auriol Potier May 26, 2023 (p.118)
 - ceased_on from text: Uri Levine April 19, 2023
-- cleanup: KMP appointed after the year end: Jayesh Sanghrajka (CFO, April 1, 2024)
-- cleanup: role: D. Sundaram: 'Director' -> 'Independent Director'
-- cleanup: role: Nitin Paranjpe: 'Director' -> 'Independent Director'
-- cleanup: role: Michael Gibbs: 'Director' -> 'Independent Director'
-- cleanup: role: Bobby Parikh: 'Director' -> 'Independent Director'
-- cleanup: role: Chitra Nayak: 'Director' -> 'Independent Director'
-- cleanup: role: Govind Iyer: 'Director' -> 'Independent Director'
-- cleanup: role: Helene Auriol Potier: 'Director' -> 'Independent Director'
-- cleanup: role: Nandan M. Nilekani: 'Director' -> 'Non-Executive, Non-Independent Director'
-- … 2 more (see data/extracted/<SYMBOL>.run.json)
+- cleanup: title: D. Sundaram: 'Lead Independent Director' (report text p.12)
+- cleanup: title: Nandan M. Nilekani: 'Chairman' (report text p.103)
+- cleanup: title: Salil Parekh: 'Chief Executive Officer and Managing Director' (report text p.13)
 
 Regressions / key-field changes vs previous run:
 - director helene auriol potier: appointed_on was 'April 19, 2023', now 'May 26, 2023'
@@ -286,7 +268,7 @@ Partial re-runs since the last full run:
 
 ## Known gaps
 
-- 50-fact sample checked against source pages with AI assistance: 45/47 confirmed, 0 wrong, 2 unconfirmed (now fixed); rows 4, 36 and 37 were skipped as nil rows removed earlier. The two: row 14 (Siraj Chaudhry -> Dhanuka Agritech Limited) cited the attendance-table page p.289; the directorship column is on p.290, and all 17 of Tata Consumer's other-directorship facts moved there (no other company was affected). Row 10 (Kaleidoscope Animations Inc, Infosys AOC-1 p.43) was right: p.43 is stored rotated and the verification export showed it sideways and cropped; the export is fixed. Same check: names lost line breaks (96) and trailing footnote markers (100: 92 Infosys, 8 Tata Steel; 99 besides Kaleidoscope, which merges with 'Kaleidoscope Animations, Inc.' from the related-party tables); KMP appointed after March 31, 2024 are marked after_fy_end (Jayesh Sanghrajka, Infosys CFO from April 1, 2024); director roles lost line breaks, and 23 empty, generic ('Director') or table-heading ('Independent Directors') roles were replaced by the category the report gives (e.g. Don Callahan: 'Independent, Non-Executive Director'). Infosys roles now come from the directors' categories, so specific titles (Chairman, CEO & MD) are not captured.
+- 50-fact sample checked against source pages with AI assistance: 45/47 confirmed, 0 wrong, 2 unconfirmed (now fixed); rows 4, 36 and 37 were skipped as nil rows removed earlier. The two: row 14 (Siraj Chaudhry -> Dhanuka Agritech Limited) cited the attendance-table page p.289; the directorship column is on p.290, and all 17 of Tata Consumer's other-directorship facts moved there (no other company was affected). Row 10 (Kaleidoscope Animations Inc, Infosys AOC-1 p.43) was right: p.43 is stored rotated and the verification export showed it sideways and cropped; the export is fixed. Same check: names lost line breaks (96) and trailing footnote markers (100: 92 Infosys, 8 Tata Steel; 99 besides Kaleidoscope, which merges with 'Kaleidoscope Animations, Inc.' from the related-party tables); KMP appointed after March 31, 2024 are marked after_fy_end (Jayesh Sanghrajka, Infosys CFO from April 1, 2024); director roles lost line breaks, and 23 empty, generic ('Director') or table-heading ('Independent Directors') roles were replaced by the category the report gives (e.g. Don Callahan: 'Independent, Non-Executive Director'). Directors keep both a category and a title: Infosys's titles (Chairman, CEO & MD, Lead Independent Director) come from the report text.
 - Related-party facts for TCS, Tata Motors, Tata Steel and Tata Consumer are from the 7b2dd6c-prompt run, checked on the page since; Infosys related-party facts were re-extracted on 2026-10-22 with the previous page given as context only. Every stored related-party fact now has a verified FY2024 amount.
 - Removed on 2026-10-22, no API calls: 79 nil rows whose FY2024 cell is a dash (Tata Steel 29, Tata Consumer 6, Infosys 44, which includes both copies of five nil rows the LLM had listed twice), and Tata Motors' 10 'Transactions with struck off companies' rows (note 45, printed inside the related-party section; relationship column 'External vendor' / 'External customer'). None of the 69 no-amount facts was a party listed without a transaction, so no separate RELATED_PARTY_OF fact type was added.
 - The first page check moved 21 Tata Consumer related-party facts from p.422 (the list of related parties) to the table page their row is on (pp.423-426): the cited page had been the first page of the 2-page group containing the short quote.
