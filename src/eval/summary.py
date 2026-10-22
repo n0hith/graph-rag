@@ -15,6 +15,7 @@ from pathlib import Path
 
 from src.eval.completeness import check_company
 from src.eval.directorship_check import check_directorships
+from src.eval.rpt_check import check_related_party
 from src.extract.extractor import load_facts
 from src.ingest.companies import Company
 
@@ -36,7 +37,7 @@ def _bullets(items: list[str], limit: int | None = None) -> list[str]:
 
 
 def write_summary(path: Path, extracted_dir: Path, sections_dir: Path, companies: list[Company],
-                  known_gaps: list[str] = ()) -> Path:
+                  known_gaps: list[str] = (), raw_pdf_dir: Path | None = None) -> Path:
     lines = [
         "# Extraction summary",
         "",
@@ -104,6 +105,28 @@ def write_summary(path: Path, extracted_dir: Path, sections_dir: Path, companies
                      f"resolution: {res.get('din') or 'unresolved'} ({res.get('basis', 'run check-dins')})")
     lines.append("")
 
+    # ---- related-party amounts on the page
+    if raw_pdf_dir is not None:
+        amount_checks = check_related_party(extracted_dir, sections_dir, raw_pdf_dir, companies, apply=False)
+        by = Counter((r.symbol, r.status) for r in amount_checks)
+        bases = Counter((r.symbol, r.basis.split(";")[0]) for r in amount_checks if r.status == "pass")
+        lines += ["## Related-party amounts checked on the page (no LLM)", "",
+                  "Each amount must be the FY2024 figure on its party's row (matrix tables: the nature's row, under the "
+                  "party's column), and in list tables the row must sit under the fact's nature heading (carried over a "
+                  "column or page break). Passing facts carry `amount_as_printed`. Amounts are compared exactly, in crore "
+                  "as printed; a printed dash counts as nil (0).", "",
+                  "| Company | Related-party facts | Pass | of which nil (-) | Fail | No amount |", "|---|---|---|---|---|---|"]
+        for c in companies:
+            n = sum(r.symbol == c.nse_symbol for r in amount_checks)
+            nil = sum(r.symbol == c.nse_symbol and r.amount_as_printed in ("-", "–", "—") for r in amount_checks)
+            lines.append(f"| {c.nse_symbol} | {n} | {by[(c.nse_symbol, 'pass')]} | {nil} | {by[(c.nse_symbol, 'fail')]} "
+                         f"| {by[(c.nse_symbol, 'no_amount')]} |")
+        lines += ["", "How each pass was decided:", ""]
+        lines += _bullets([f"{symbol}: {basis}: {n}" for (symbol, basis), n in sorted(bases.items())])
+        fails = [f"{r.symbol} p.{r.cited_page}: {r.party_name} / {r.nature} = {r.amount}: {r.detail}"
+                 for r in amount_checks if r.status == "fail"]
+        lines += ["", f"Failing ({len(fails)}):", ""] + (_bullets(fails) if fails else ["None."]) + [""]
+
     # ---- cross-report directorships
     checks = check_directorships(extracted_dir, companies)
     status = Counter(ch.status for ch in checks)
@@ -128,9 +151,15 @@ def write_summary(path: Path, extracted_dir: Path, sections_dir: Path, companies
         lines += _bullets([f"[{d['fact_type']}] {d['reason']}: {json.dumps(d['evidence'][:90], ensure_ascii=False)}"
                            for d in dropped], 5)
         for title, key in [("Merges", "merges"), ("Possible matches not merged", "ambiguous"),
-                           ("Director checks", "notes"), ("Regressions / key-field changes vs previous run", "regressions")]:
+                           ("Director and amount checks", "notes"),
+                           ("Regressions / key-field changes vs previous run", "regressions")]:
             if run.get(key):
                 lines += ["", f"{title}:"] + _bullets(run[key], 12)
+        if run.get("partial_runs"):
+            lines += ["", "Partial re-runs since the last full run:"] + _bullets([
+                f"{r['date']}: {', '.join(r['sections'])}: {r['calls_used']} LLM calls, {r['facts']} facts"
+                + (f"; regressions: {'; '.join(r['regressions'])}" if r["regressions"] else "; no regressions")
+                for r in run["partial_runs"]])
         lines.append("")
 
     if known_gaps:

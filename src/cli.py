@@ -102,15 +102,20 @@ def sectionize(
 @app.command()
 def extract(
     company: list[str] = typer.Option(None, "--company", "-c", help="NSE symbol; repeat for several. Default: all."),
-    sample_size: int = typer.Option(20, help="How many facts to export to CSV for hand-checking."),
+    sample_size: int = typer.Option(20, help="How many facts to export to CSV for hand-checking (0: don't export)."),
     accept_fewer: bool = typer.Option(
         False, help="Keep a re-run's results even where it found fewer facts than the previous run."
+    ),
+    section: list[str] = typer.Option(
+        None, "--section", help="Only re-run this section type (e.g. related_party); repeat for several. "
+                                "Other sections keep their saved facts."
     ),
 ) -> None:
     """Extract facts from sectionized reports, with table parsing tried before the LLM.
 
     Where a re-run finds fewer facts of a type in a section than the saved previous run,
     the previous facts are kept and the drop is flagged (unless --accept-fewer)."""
+    import datetime
     import json
     from collections import Counter
 
@@ -131,7 +136,13 @@ def extract(
     settings = get_settings()
     companies = _companies(company)
 
-    estimates = {c.nse_symbol: estimate_calls(settings.sections_dir, c.nse_symbol) for c in companies}
+    only = set(section) if section else None
+    section_keys = {"directors": "corporate_governance", "kmp": "corporate_governance",
+                    "subsidiaries": "subsidiaries_aoc1", "auditor_statutory": "auditor_report",
+                    "auditor_secretarial": "secretarial_audit", "related_party": "related_party"}
+    estimates = {c.nse_symbol: {k: v for k, v in estimate_calls(settings.sections_dir, c.nse_symbol).items()
+                                if only is None or section_keys[k] in only}
+                 for c in companies}
     typer.secho("Estimated Gemini calls:", bold=True)
     total_estimate = 0
     for symbol, breakdown in estimates.items():
@@ -154,13 +165,16 @@ def extract(
     overrides = load_merge_overrides(settings.data_dir / "overrides" / "merges.csv")
     try:
         for c in companies:
-            result = extract_company(c, settings.sections_dir, client, overrides)
+            result = extract_company(c, settings.sections_dir, client, overrides, settings.raw_pdf_dir, only)
             path = out_dir / f"{c.nse_symbol}.jsonl"
             previous = load_facts(path) if path.exists() else []
+            untouched = [f for f in previous if only is not None and f.section_type not in only]
+            previous = [f for f in previous if only is None or f.section_type in only]
             facts, flags = keep_previous_if_fewer(previous, result.facts, accept_fewer, result.explained_removals)
             regressions.extend(f"{c.nse_symbol}: {flag}" for flag in flags)
-            save_facts(path, facts)
-            (out_dir / f"{c.nse_symbol}.run.json").write_text(json.dumps({
+            save_facts(path, untouched + facts)
+            run_path = out_dir / f"{c.nse_symbol}.run.json"
+            run = {
                 "calls_used": result.calls_used,
                 "dropped": [asdict(d) for d in result.dropped],
                 "merges": result.merges,
@@ -168,7 +182,23 @@ def extract(
                 "notes": result.notes,
                 "explained_removals": [[*k, v] for k, v in result.explained_removals.items() if v],
                 "regressions": flags,
-            }, ensure_ascii=False, indent=2), encoding="utf-8")
+            }
+            if only is not None and run_path.exists():
+                # A partial re-run: keep the last full run's record for the other sections.
+                last = json.loads(run_path.read_text(encoding="utf-8"))
+                mine = lambda text: any(name in text for name in only)
+                run = {
+                    **last,
+                    "dropped": [d for d in last.get("dropped", []) if d["section_type"] not in only] + run["dropped"],
+                    "notes": [n for n in last.get("notes", []) if not n.startswith(("amount not verified", "related-party amounts"))]
+                             + result.notes,
+                    "regressions": [r for r in last.get("regressions", []) if not mine(r)] + flags,
+                    "partial_runs": last.get("partial_runs", []) + [{
+                        "date": datetime.date.today().isoformat(), "sections": sorted(only),
+                        "calls_used": result.calls_used, "facts": len(result.facts), "regressions": flags}],
+                }
+            run_path.write_text(json.dumps(run, ensure_ascii=False, indent=2), encoding="utf-8")
+            facts = untouched + facts
             combined.facts.extend(facts)
             combined.dropped.extend(result.dropped)
             combined.calls_used += result.calls_used
@@ -209,7 +239,7 @@ def extract(
     typer.echo(client.tracker.summary())
     typer.echo(f"\nFacts saved under {out_dir}")
 
-    if combined.facts:
+    if combined.facts and sample_size:
         sample_path = export_sample(combined.facts, out_dir / "sample_for_review.csv", sample_size)
         typer.secho(f"Sample of {min(sample_size, len(combined.facts))} facts for hand-checking: {sample_path}", bold=True)
 
@@ -272,8 +302,35 @@ def report(
 
     settings = get_settings()
     path = write_summary(settings.data_dir.parent / "reports" / "extraction_summary.md",
-                         settings.data_dir / "extracted", settings.sections_dir, _companies(None), gap or [])
+                         settings.data_dir / "extracted", settings.sections_dir, _companies(None), gap or [],
+                         settings.raw_pdf_dir)
     typer.echo(f"Wrote {path}")
+
+
+@app.command("check-rpt-amounts")
+def check_rpt_amounts_cmd(
+    apply: bool = typer.Option(True, help="Write amount_as_printed onto the facts that pass."),
+) -> None:
+    """Check each saved related-party amount on the PDF page (no LLM calls): the party's row,
+    the FY2024 column, under its nature heading."""
+    from collections import Counter
+
+    from src.eval.rpt_check import check_related_party
+
+    settings = get_settings()
+    results = check_related_party(settings.data_dir / "extracted", settings.sections_dir, settings.raw_pdf_dir,
+                                  _companies(None), apply)
+    counts = Counter((r.symbol, r.status) for r in results)
+    typer.secho("Related-party amounts checked on the page:", bold=True)
+    for symbol in dict.fromkeys(r.symbol for r in results):
+        moved = sum(r.symbol == symbol and r.page not in (None, r.cited_page) for r in results)
+        nil = sum(r.symbol == symbol and r.amount_as_printed == "-" for r in results)
+        typer.echo(f"  {symbol:<11} pass {counts[(symbol, 'pass')]:<4} (nil '-': {nil}, page corrected: {moved})  "
+                   f"fail {counts[(symbol, 'fail')]:<3} no amount {counts[(symbol, 'no_amount')]}")
+    for r in results:
+        if r.status == "fail":
+            typer.secho(f"  [fail] {r.symbol} p.{r.cited_page} {r.party_name} / {r.nature} = {r.amount}: {r.detail}",
+                        fg=typer.colors.YELLOW)
 
 
 @app.command("check-dins")

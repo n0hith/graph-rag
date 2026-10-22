@@ -22,6 +22,7 @@ from pathlib import Path
 
 from src.ingest.companies import Company
 from src.llm.client import LLMClient, StructuredOutputError
+from src.extract.amounts import check_amounts, with_checked_amount
 from src.extract.prompts import (
     auditor_prompt,
     director_prompt,
@@ -252,13 +253,19 @@ def _extract_llm_facts(
     extra_data: dict | None = None,
 ) -> tuple[list[Fact], list[DroppedFact], int]:
     """Run `prompt_fn` over `pages` in groups, validate each fact's evidence quote, and
-    turn survivors into `Fact`s. Shared by every LLM-sourced fact type."""
+    turn survivors into `Fact`s. Shared by every LLM-sourced fact type. Each group after
+    the first is shown the page before it as context only (a table running over a page
+    break has its heading there); a quote found only on that page is dropped, since that
+    page is extracted in its own group."""
     facts: list[Fact] = []
     dropped: list[DroppedFact] = []
     calls = 0
+    start = 0
     for group in _group_pages(pages, section_type):
+        context = pages[start - 1] if start else None
+        start += len(group)
         calls += 1
-        prompt = prompt_fn(group)
+        prompt = prompt_fn(group, context)
         try:
             result = _call_structured(client, prompt, list_attr[0], step)
         except StructuredOutputError:
@@ -271,7 +278,9 @@ def _extract_llm_facts(
                 data["firm_registration_no"] = _checked_frn(data.get("firm_registration_no"), item.evidence)
             page = _find_page(item.evidence, group)
             if page is None:
-                dropped.append(DroppedFact(fact_type, section_type, "evidence not found in source text", item.evidence, data))
+                reason = ("quoted from the context page only" if context and _find_page(item.evidence, [context])
+                          else "evidence not found in source text")
+                dropped.append(DroppedFact(fact_type, section_type, reason, item.evidence, data))
                 continue
             facts.append(Fact(fact_type, "llm", company.name, company.nse_symbol, section_type, page, FY, data, item.evidence))
     return facts, dropped, calls
@@ -565,7 +574,7 @@ KEY_FIELDS = {
     "director": ("din", "status", "appointed_on", "ceased_on"),
     "kmp": ("status", "appointed_on", "ceased_on"),
     "auditor": ("firm_registration_no",),
-    "related_party": ("amount_inr_crore",),
+    "related_party": ("amount_inr_crore", "amount_as_printed"),
     "subsidiary": ("stake_pct",),
 }
 
@@ -670,34 +679,22 @@ def _drop_repeat_block(facts: list[Fact], pages: list[dict]) -> tuple[list[Fact]
     return kept, dropped
 
 
-NUMBER_RE = re.compile(r"\(?-?\d[\d,]*(?:\.\d+)?\)?")
-
-
-def _amount_in_quote(amount: float, evidence: str) -> bool:
-    """Whether `amount` (crore) is printed in the quote: as is, or in rupees or lakh that
-    convert to it (the prompt allows converting those)."""
-    for token in NUMBER_RE.findall(evidence):
-        try:
-            n = abs(float(token.strip("()").replace(",", "")))
-        except ValueError:
-            continue
-        for value in (n, n / 1e7, n / 100):
-            if abs(value - abs(amount)) <= max(0.005, abs(amount) * 1e-6):
-                return True
-    return False
-
-
-def _check_amounts_quoted(facts: list[Fact]) -> tuple[list[Fact], list[DroppedFact]]:
-    """Related-party facts must quote their amount: one whose amount isn't in its evidence
-    quote is dropped, since nothing then ties the number to the report."""
-    kept, dropped = [], []
-    for f in facts:
-        amount = f.data.get("amount_inr_crore")
-        if amount is not None and not _amount_in_quote(amount, f.evidence):
-            dropped.append(DroppedFact(f.fact_type, f.section_type, "amount not in the evidence quote", f.evidence, f.data))
-        else:
-            kept.append(f)
-    return kept, dropped
+def _check_amounts_on_page(facts: list[Fact], section: dict, raw_pdf_dir: Path) -> tuple[list[Fact], list[str]]:
+    """Each related-party amount checked on the PDF page (see `src.extract.amounts`): one on
+    its party's row, in the FY2024 column (and under its nature's heading) gets
+    `amount_as_printed`; the rest are kept without it and listed."""
+    pdf_path = raw_pdf_dir / section["source_pdf"]
+    if not pdf_path.exists():
+        return facts, [f"related-party amounts not checked: {pdf_path.name} not found"]
+    facts = list(facts)
+    notes = []
+    for i, status, page, cell, _, detail in check_amounts(facts, pdf_path, [p["page"] for p in section["pages"]]):
+        f = facts[i]
+        facts[i] = with_checked_amount(f, page, cell)
+        if status == "fail":
+            notes.append(f"amount not verified on the page: {f.data.get('party_name')} / {f.data.get('nature')} = "
+                         f"{f.data.get('amount_inr_crore')} (p.{f.page}): {detail}")
+    return facts, notes
 
 
 def _directorship_facts(director: Fact, entries: list[dict], company: Company) -> list[Fact]:
@@ -735,14 +732,23 @@ def _checked_directorships(director: Fact, pages: list[dict]) -> tuple[list[dict
 
 
 def extract_company(
-    company: Company, sections_dir: Path, client: LLMClient, merge_overrides: list[dict] | None = None
+    company: Company, sections_dir: Path, client: LLMClient, merge_overrides: list[dict] | None = None,
+    raw_pdf_dir: Path | None = None, sections: set[str] | None = None,
 ) -> ExtractionResult:
     """Extract every fact type for one company. Section JSONs missing from `sections_dir`
     are skipped silently (nothing to extract). `merge_overrides` are hand-confirmed director
-    merges (see `load_merge_overrides`)."""
+    merges (see `load_merge_overrides`). `raw_pdf_dir` holds the PDFs related-party amounts
+    are checked against (default: `raw_pdfs` beside `sections_dir`). `sections`, if given,
+    limits the run to those section types."""
     result = ExtractionResult()
+    raw_pdf_dir = raw_pdf_dir or sections_dir.parent / "raw_pdfs"
 
-    cg = _load_section(sections_dir, company.nse_symbol, "corporate_governance")
+    def load(section_type: str) -> dict | None:
+        if sections is not None and section_type not in sections:
+            return None
+        return _load_section(sections_dir, company.nse_symbol, section_type)
+
+    cg = load("corporate_governance")
     if cg:
         table_facts = []
         for i, page in enumerate(cg["pages"]):
@@ -778,7 +784,7 @@ def extract_company(
         result.dropped.extend(dropped)
         result.calls_used += calls
 
-    aoc1 = _load_section(sections_dir, company.nse_symbol, "subsidiaries_aoc1")
+    aoc1 = load("subsidiaries_aoc1")
     if aoc1:
         table_facts = []
         for page in aoc1["pages"]:
@@ -802,11 +808,11 @@ def extract_company(
             result.calls_used += calls
 
     for section_type, audit_type in [("auditor_report", "statutory"), ("secretarial_audit", "secretarial")]:
-        sec = _load_section(sections_dir, company.nse_symbol, section_type)
+        sec = load(section_type)
         if not sec:
             continue
         facts, dropped, calls = _extract_llm_facts(
-            client, sec["pages"], lambda pages, t=audit_type: auditor_prompt(pages, t),
+            client, sec["pages"], lambda pages, context, t=audit_type: auditor_prompt(pages, t, context),
             (AuditorFactList, "auditors"), "auditor", section_type, company,
             f"extract.auditor.{audit_type}", extra_data={"audit_type": audit_type},
         )
@@ -814,14 +820,14 @@ def extract_company(
         result.dropped.extend(dropped)
         result.calls_used += calls
 
-    rpt = _load_section(sections_dir, company.nse_symbol, "related_party")
+    rpt = load("related_party")
+    amount_notes: list[str] = []
     if rpt:
         facts, dropped, calls = _extract_llm_facts(
             client, rpt["pages"], related_party_prompt, (RelatedPartyFactList, "related_party_transactions"),
             "related_party", "related_party", company, "extract.related_party",
         )
-        facts, unquoted = _check_amounts_quoted(facts)
-        dropped.extend(unquoted)
+        facts, amount_notes = _check_amounts_on_page(_dedupe(facts), rpt, raw_pdf_dir)
         result.facts.extend(facts)
         result.dropped.extend(dropped)
         result.calls_used += calls
@@ -844,6 +850,6 @@ def extract_company(
         d.reason.startswith("in a summary block") for d in result.dropped)
     result.explained_removals = dict(explained)
     result.merges = filled + result.merges + override_log
-    result.notes = notes
+    result.notes = notes + amount_notes
     result.dropped.extend(not_fy)
     return result

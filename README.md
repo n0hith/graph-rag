@@ -90,8 +90,9 @@ python -m src.cli --help
 | `download` | 1 | Fetch the PDFs in `companies.csv` and verify them against `data/pdf_checksums.json` |
 | `sectionize` | 1 | Find the governance report, AOC-1, auditor's report, secretarial audit and related-party note |
 | `baseline-index`, `ask --mode baseline` | 2 | Plain RAG baseline |
-| `extract` | 3 | Fact extraction |
+| `extract` | 3 | Fact extraction (`--section related_party` re-runs one section; `--sample-size 0` leaves the hand-check sample alone) |
 | `check-directorships` | 3 | Check each report's "directorship in other listed entity" claims against the other pilot company's own director list |
+| `check-rpt-amounts` | 3 | Check related-party amounts on the PDF page (party's row, FY2024 column, nature heading) and record `amount_as_printed`; no LLM calls |
 | `resolve` | 4 | Entity resolution |
 | `load` | 5 | Load into Neo4j |
 | `ask` | 6 | Graph question answering |

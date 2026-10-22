@@ -376,3 +376,26 @@ def test_same_name_subsidiaries_in_different_countries_are_both_kept():
         return Fact("subsidiary", "llm", "Example Ltd", "EX", "subsidiaries_aoc1", 1, "FY2023-24",
                     {"subsidiary_name": "Infosys Consulting S.R.L.", "country": country, "cin": None, "stake_pct": 100.0}, "x")
     assert [f.data["country"] for f in _dedupe([sub("Romania"), sub("Argentina"), sub("Romania")])] == ["Romania", "Argentina"]
+
+
+# ---------------------------------------------------------------- context page
+
+
+def test_each_group_after_the_first_sees_the_previous_page_as_context(tmp_path):
+    pages = [_page(253, "Unbilled revenues\nEdgeVerve 101"), _page(254, "Panaya Ltd 7"), _page(255, "Danske IT 4")]
+    sections_dir = write_sections(tmp_path, {"related_party": _section("related_party", pages)})
+    # Every call returns the same item, quoting text that is only on p.254.
+    item = {"related_party_transactions": [{"party_name": "Panaya Ltd", "nature": "Unbilled revenues",
+                                            "amount_inr_crore": 7.0, "evidence": "Panaya Ltd"}]}
+    client, provider = make_client(tmp_path, responses={"related-party transactions note": json.dumps(item)})
+
+    result = extract_company(COMPANY, sections_dir, client)
+
+    first, second = provider.calls
+    assert "CONTEXT ONLY" not in first
+    assert "[PAGE 254 - CONTEXT ONLY" in second and "Panaya Ltd 7" in second and "[PAGE 255]" in second
+    # Found on p.254 in the first group; the second group can only see it on its context page.
+    assert [(f.page, f.data["party_name"]) for f in result.facts] == [(254, "Panaya Ltd")]
+    assert [d.reason for d in result.dropped] == ["quoted from the context page only"]
+    # No PDF beside the sections in this test: amounts are left unchecked, and that is said.
+    assert any("amounts not checked" in n for n in result.notes)

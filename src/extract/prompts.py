@@ -16,12 +16,23 @@ COMMON_RULES = (
 )
 
 
-def _paged_text(pages: list[dict]) -> str:
-    """Join a page group's text with `[PAGE N]` markers, so the model can tell pages apart."""
-    return "\n\n".join(f"[PAGE {p['page']}]\n{p['text']}" for p in pages)
+def _paged_text(pages: list[dict], context: dict | None = None) -> str:
+    """Join a page group's text with `[PAGE N]` markers, so the model can tell pages apart.
+    `context` is the page before the group, shown first and marked context-only: a table
+    that runs over a page break has its heading there (Infosys p.254 continues p.253's
+    'Unbilled revenues')."""
+    text = "\n\n".join(f"[PAGE {p['page']}]\n{p['text']}" for p in pages)
+    if not context:
+        return text
+    return (
+        f"[PAGE {context['page']} - CONTEXT ONLY. This is the page before the excerpt. Do not "
+        "list any item from it. Use it only to tell which table, heading or column a row at "
+        "the top of the next page belongs to.]\n"
+        f"{context['text']}\n[END OF CONTEXT PAGE]\n\n{text}"
+    )
 
 
-def director_prompt(pages: list[dict]) -> str:
+def director_prompt(pages: list[dict], context: dict | None = None) -> str:
     return (
         f"{COMMON_RULES}\n\n"
         "From this Corporate Governance Report excerpt, list every Board of Directors "
@@ -42,11 +53,11 @@ def director_prompt(pages: list[dict]) -> str:
         "abbreviation like 'NINED' or '(I)' only if the report's own key explains it), and "
         "`note` for any remark on it such as 'Debt Listed' or a cessation date. Leave the "
         "list empty if none are listed for them.\n\n"
-        f"Report excerpt:\n{_paged_text(pages)}"
+        f"Report excerpt:\n{_paged_text(pages, context)}"
     )
 
 
-def kmp_prompt(pages: list[dict]) -> str:
+def kmp_prompt(pages: list[dict], context: dict | None = None) -> str:
     return (
         f"{COMMON_RULES}\n\n"
         "From this Corporate Governance Report excerpt, identify the Chief Executive "
@@ -59,11 +70,11 @@ def kmp_prompt(pages: list[dict]) -> str:
         "partway through the year; otherwise 'current'. Fill `appointed_on` or `ceased_on` "
         "only when the report states an actual date for that change; leave them null "
         "otherwise — never guess a date.\n\n"
-        f"Report excerpt:\n{_paged_text(pages)}"
+        f"Report excerpt:\n{_paged_text(pages, context)}"
     )
 
 
-def subsidiary_prompt(pages: list[dict]) -> str:
+def subsidiary_prompt(pages: list[dict], context: dict | None = None) -> str:
     return (
         f"{COMMON_RULES}\n\n"
         "From this Form AOC-1 excerpt (salient features of subsidiaries' financial "
@@ -75,11 +86,11 @@ def subsidiary_prompt(pages: list[dict]) -> str:
         "Skip any summary block that repeats subsidiaries already listed in the table "
         "(e.g. 'Details of Direct Subsidiaries, on consolidated basis including their "
         "respective subsidiaries included above').\n\n"
-        f"Report excerpt:\n{_paged_text(pages)}"
+        f"Report excerpt:\n{_paged_text(pages, context)}"
     )
 
 
-def auditor_prompt(pages: list[dict], audit_type: str) -> str:
+def auditor_prompt(pages: list[dict], audit_type: str, context: dict | None = None) -> str:
     kind = "statutory (financial statements)" if audit_type == "statutory" else "secretarial"
     return (
         f"{COMMON_RULES}\n\n"
@@ -95,11 +106,11 @@ def auditor_prompt(pages: list[dict], audit_type: str) -> str:
         "`evidence`, quote the signature block as one continuous piece of text from the "
         "firm's (or person's) name through the 'Firm Registration No.' line when there is "
         "one, so the quote contains the registration number.\n\n"
-        f"Report excerpt:\n{_paged_text(pages)}"
+        f"Report excerpt:\n{_paged_text(pages, context)}"
     )
 
 
-def related_party_prompt(pages: list[dict]) -> str:
+def related_party_prompt(pages: list[dict], context: dict | None = None) -> str:
     return (
         f"{COMMON_RULES}\n\n"
         "From this related-party transactions note, list each distinct related party "
@@ -110,8 +121,10 @@ def related_party_prompt(pages: list[dict]) -> str:
         "Go through every row and column of any transactions table. Every amount must be "
         "the current year's (FY2024, i.e. 2023-24 / year ended March 31, 2024) figure: when "
         "a table or sentence gives both years, take the current-year column or figure, "
-        "never the previous year's. For `evidence`, quote a short continuous piece of text "
-        "that contains the amount exactly as printed (e.g. the party name or row label "
-        "followed by its figures); a fact without its amount in the quote is discarded.\n\n"
-        f"Report excerpt:\n{_paged_text(pages)}"
+        "never the previous year's. For `nature`, use the heading the row sits under, as "
+        "printed; rows at the top of a page or column often continue a heading from the "
+        "previous page or column, so check where the heading above them is. For `evidence`, "
+        "quote the party's name (or the row label) exactly as printed; the amount is checked "
+        "against the page separately.\n\n"
+        f"Report excerpt:\n{_paged_text(pages, context)}"
     )

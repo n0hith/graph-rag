@@ -1,6 +1,6 @@
 """Director clean-up after extraction: footnotes in the director table, the DIN certificate,
 DIN conflicts, the FY2024 board rule, hand-confirmed merges, and the field-level regression
-guard. Also the AOC-1 repeat-block filter and the related-party amount-in-quote check."""
+guard. Also the AOC-1 repeat-block filter. (Related-party amounts: test_rpt_amounts.py.)"""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import json
 
 from src.extract.extractor import (
     Fact,
-    _amount_in_quote,
     _apply_merge_overrides,
     _drop_repeat_block,
     _fill_dins_from_certificate,
@@ -172,13 +171,6 @@ def test_repeat_block_entries_are_dropped():
     assert dropped[0].reason.startswith("in a summary block")
 
 
-def test_amount_must_be_in_the_quote():
-    assert _amount_in_quote(37389.65, "Purchase of goods\n37,389.65")
-    assert _amount_in_quote(0.0122328, "paid dividend of ₹1,22,328.00 (2022-23: ₹1,73,298.00)")  # rupees -> crore
-    assert _amount_in_quote(-5.0, "Loss (5)")
-    assert not _amount_in_quote(200.0, "Tata Sons Private Limited")
-
-
 # ---------------------------------------------------------------- field-level guard
 
 
@@ -200,6 +192,13 @@ def test_field_guard_flags_lost_and_changed_key_fields():
     assert "related_party tata sons private limited / dividend paid: amount_inr_crore was 18177.0, now 18000.0" in flags
     assert "director don callahan: status was 'current', now 'ceased'" in flags
     assert len(flags) == 3
+
+
+def test_field_guard_flags_a_lost_amount_as_printed():
+    before = _rpt(18177.0)
+    before = Fact(**{**before.__dict__, "data": {**before.data, "amount_as_printed": "18,177"}})
+    flags = field_changes([before], [_rpt(18177.0)])
+    assert flags == ["related_party tata sons private limited / dividend paid: amount_as_printed was '18,177', now empty"]
 
 
 def test_field_guard_skips_ambiguous_identities_and_first_fills():
