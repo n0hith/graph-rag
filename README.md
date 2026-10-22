@@ -94,7 +94,7 @@ python -m src.cli --help
 | `check-directorships` | 3 | Check each report's "directorship in other listed entity" claims against the other pilot company's own director list |
 | `check-rpt-amounts` | 3 | Check related-party amounts on the PDF page (party's row, FY2024 column, nature heading), record `amount_as_printed`, relabel a nature found under another printed heading, remove nil rows and struck-off companies; no LLM calls |
 | `check-dates` | 3 | Replace appointment/cessation dates later than the report's own date with the same person's other mention (`date_conflict` keeps the printed one); no LLM calls |
-| `resolve` | 4 | Entity resolution |
+| `resolve` | 4 | Entity resolution: people by DIN, then confirmed merges, then name; companies by CIN, then normalised name; look-alikes listed in `data/resolved/uncertain.csv`, not merged. Writes `data/resolved/` and `reports/resolution_summary.md`; no LLM calls |
 | `load` | 5 | Load into Neo4j |
 | `ask` | 6 | Graph question answering |
 | `eval` | 7 | Evaluation against the baseline |
@@ -252,3 +252,39 @@ merged, possible matches left unmerged, regressions).
   company's own report is the authority on its board, so these should merge into, not
   duplicate, that company's own `director` facts (`check-directorships` lists the ones that
   don't line up).
+- **Rules added while resolving (2026-10-22):** a former name ("formerly known as X",
+  "previously X") never merges on its own, because another company may hold that name now
+  (TMF Business Services Limited was formerly Tata Motors Finance Limited; Jaguar Land Rover
+  Limited was previously Jaguar Cars Limited; Tata Motors lists both of each pair). Two rows
+  of the same report's subsidiary list are always two companies, even against an override.
+  Look-alike names go to `data/resolved/uncertain.csv`; decisions go in
+  `data/overrides/merges.csv` (people: `to_din`; companies: `action` merge / split /
+  merged_into / formerly_named).
+
+### Notes for Phase 5 (loading): schema additions from Phase 4
+
+Phase 4's output (`data/resolved/entities.jsonl`, `relations.jsonl`) adds to the schema in
+PROJECT_SPEC.md:
+
+- **`RelatedPartyGroup {id, name, reported_by}`**: a related-party "party" that is a category,
+  not one company ("Subsidiaries", "Associates", "Promoter", "Subsidiaries of Tata Sons Private
+  Limited"). One node per report and label, since Tata Steel's "Subsidiaries" are not Tata
+  Consumer's. `RELATED_PARTY_TXN` can point at a Company or a RelatedPartyGroup.
+- **`(RelatedPartyGroup)-[:GROUP_OF]->(Company)`** where the label names the company it is
+  about (Tata Sons Private Limited).
+- **`(Company)-[:MERGED_INTO {note}]->(Company)`**: Saudi Desert Rose Holding B.V. into Tata
+  Consultancy Services Netherlands BV, w.e.f. August 29, 2023. Two companies, not one.
+- **`(Company)-[:FORMERLY_NAMED {former_name}]->(Company)`**: a name link, not a company
+  link. Jaguar Land Rover Limited was previously named Jaguar Cars Limited, the name a
+  different company holds now.
+- **`DIRECTOR_OF`** combines every mention of one seat: `status` is current unless the only
+  stated status is ceased ("appointed" and "current" both mean current), all dates are kept,
+  and a seat known only from another company's report ("Directorship in other listed
+  entity") has no status. Its `sources` list says whose report said what.
+- Every relation carries `sources: [{source_doc, page, evidence, fy, reported_by}]` rather
+  than a single source, since merged relations can have several.
+- Companies without a CIN (all but the five reporting companies) get the Phase 4 entity id
+  (`company:NNNN`) plus `name_normalized`, as the spec allows for foreign subsidiaries. The
+  ids are numbered afresh on every `resolve` run, and `name_normalized` (+ country) is not
+  unique on its own (two rows of one subsidiary list can share a name when the list has no
+  country column), so Phase 5 needs a stable key before loading with MERGE.

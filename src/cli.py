@@ -373,8 +373,27 @@ def check_dins_cmd(
 
 @app.command()
 def resolve() -> None:
-    """Merge duplicate people and companies."""
-    _not_built(4)
+    """Merge duplicate people and companies across the five reports' facts (no LLM calls).
+    Writes data/resolved/ (entities, relations, merge log, uncertain.csv) and
+    reports/resolution_summary.md."""
+    from collections import Counter
+
+    from src.resolve.merge_entities import load_overrides, resolve as run_resolve, write_outputs
+    from src.resolve.report import write_resolution_summary
+
+    settings = get_settings()
+    res = run_resolve(settings.data_dir / "extracted", _companies(None),
+                      load_overrides(settings.data_dir / "overrides" / "merges.csv"))
+    write_outputs(res, settings.data_dir / "resolved")
+    path = write_resolution_summary(settings.data_dir.parent / "reports" / "resolution_summary.md", res)
+    mentions, entities = Counter(m.kind for m in res.mentions), Counter(e["type"] for e in res.entities)
+    multi = Counter(e["type"] for e in res.entities if len(e["reports"]) > 1)
+    typer.secho("Entities (mentions -> entities, in more than one report):", bold=True)
+    for kind, label in [("person", "Person"), ("company", "Company"), ("firm", "AuditFirm"), ("group", "RelatedPartyGroup")]:
+        typer.echo(f"  {label:<18} {mentions[kind]:>4} -> {entities[label]:<4} ({multi[label]} in more than one report)")
+    typer.echo(f"Relations: {dict(Counter(r['type'] for r in res.relations))}")
+    typer.secho(f"Uncertain matches for review (not merged): {len(res.uncertain)}", bold=True, fg=typer.colors.YELLOW)
+    typer.echo(f"Wrote {settings.data_dir / 'resolved'} and {path}")
 
 
 @app.command()
