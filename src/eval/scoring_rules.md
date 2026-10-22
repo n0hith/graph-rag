@@ -38,9 +38,11 @@ not change after seeing results.
 
 **Text-only** (`category: text_only`)
 - Graded by an LLM judge with the fixed rubric below, and reported separately from the other
-  categories. The user spot-checks 10 of the judge's grades by hand; the agreement is reported.
+  categories. The user hand-checks ALL of the judge's grades (15 questions x 2 systems = 30);
+  where the user disagrees, the user's grade counts, and the judge's agreement rate is reported.
 - Judge: the configured `GEMINI_QA_MODEL` at temperature 0, with the prompt below, fixed in code
-  before the run.
+  before the run. (It is the same model that writes both systems' answers, which is why every
+  grade is checked by hand.)
 - Rubric: **1** = states the gold answer's key fact(s) correctly and nothing that contradicts
   them; **0.5** = some key facts correct, some missing; **0** = wrong, contradicts the gold, or
   says the reports don't contain it. The judge returns the grade and a one-line reason.
@@ -62,7 +64,7 @@ not change after seeing results.
 
 - Results by category for both systems: questions scored; for lists, average F1 and the share
   completely correct; for numbers, accuracy; for none/unanswerable, accuracy; text-only judge
-  scores separately, with the hand spot-check agreement.
+  scores separately (after the user's hand check of every grade), with the judge's agreement rate.
 - Overall results, and which system wins each category.
 - A failure list: every question a system got less than fully right, with the reason, from a
   fixed set: wrong query, missing fact (not in the graph), extraction error, entity not found,
