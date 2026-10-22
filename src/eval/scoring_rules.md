@@ -1,0 +1,70 @@
+# Phase 7 scoring rules (agreed before any evaluation run)
+
+Written 2026-10-22 and committed before the test set is run by either system. These rules will
+not change after seeing results.
+
+## What is scored
+
+- Only questions in `src/eval/questions.jsonl` with `verified: true` count. Where the user
+  corrected a gold answer during verification, the corrected answer is the gold.
+- Two systems: the graph route (`ask --mode graph`, which may fall back to the baseline by its
+  own rules) and the baseline (`ask --mode baseline`).
+
+## How each answer type is scored
+
+**Lists** (`answer_type: entity_list`)
+- Per question: precision, recall and F1 between the entities in the answer and the gold list.
+- Name matching handles aliases and spellings: case, punctuation, titles (Mr/Ms/Dr), legal forms
+  (Ltd/Limited, Pvt/Private), the l/I lookalike, every alias the resolved entities record, and
+  close spellings (similarity 0.9 or more). Each gold item can be matched once.
+- A gold item that carries a value ("Tata Motors: ₹298.51 crore", "Japan 66%") counts as found
+  only if the answer gives that value for that entity (number rules below).
+- Reported per category: average F1, and the share of questions answered completely correctly
+  (F1 = 1, i.e. every gold item found and nothing extra).
+
+**Numbers and counts** (`answer_type: number`)
+- Exact match on the value. Formatting and units may differ: "₹2,40,893 crore", "2,40,893",
+  "240,893 crore" and "Rs 2.40893 lakh crore" are the same; "129" and "one hundred twenty-nine"
+  are the same; "55.39%" and "55.39 percent" are the same. A rounded or approximate value is wrong.
+
+**Dates and short factual text outside `text_only`** (`answer_type: text` in other categories)
+- Split into the key facts the gold states (each date, number, name); scored as a list of those
+  facts by the rules above. Dates match whatever the format ("June 1, 2023", "01/06/2023").
+
+**None and unanswerable** (`answer_type: none` / `unanswerable`)
+- Correct only if the system says there are none, or that the reports don't say. Mentioning
+  related context is fine (e.g. that the previous Company Secretary resigned).
+- Any invented answer (naming an entity, a value or a date as the answer) is wrong.
+
+**Text-only** (`category: text_only`)
+- Graded by an LLM judge with the fixed rubric below, and reported separately from the other
+  categories. The user spot-checks 10 of the judge's grades by hand; the agreement is reported.
+- Judge: the configured `GEMINI_QA_MODEL` at temperature 0, with the prompt below, fixed in code
+  before the run.
+- Rubric: **1** = states the gold answer's key fact(s) correctly and nothing that contradicts
+  them; **0.5** = some key facts correct, some missing; **0** = wrong, contradicts the gold, or
+  says the reports don't contain it. The judge returns the grade and a one-line reason.
+
+## Clarification questions
+
+- Answering "which one do you mean?" counts as wrong, unless the question is genuinely ambiguous
+  (marked `ambiguous: true` during verification). The current draft has no such question.
+
+## Fair comparison
+
+- The grader does not see which system gave an answer: answers are shuffled and stripped of the
+  system name, route, Cypher and sources before grading (automatic scoring and the LLM judge).
+- Each system runs once, at temperature 0, on every verified question. No re-runs and no prompt
+  or code changes after seeing results. If a call fails for an infrastructure reason (quota,
+  network) before any answer is produced, that call is retried; an answer, once produced, is final.
+
+## Report
+
+- Results by category for both systems: questions scored; for lists, average F1 and the share
+  completely correct; for numbers, accuracy; for none/unanswerable, accuracy; text-only judge
+  scores separately, with the hand spot-check agreement.
+- Overall results, and which system wins each category.
+- A failure list: every question a system got less than fully right, with the reason, from a
+  fixed set: wrong query, missing fact (not in the graph), extraction error, entity not found,
+  asked for clarification, fell back to the baseline, retrieval miss (baseline), invented answer,
+  partial list, wrong value.
