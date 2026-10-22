@@ -7,7 +7,7 @@ TCS,company,Saudi Desert Rose Holding B.V.,,"TCS AOC-1 note 3, p.307: ""merged w
 TATASTEEL,person,O. P. Bhatt,00548091,"Review #1: Tata Steel's Board's report p.177 prints ""Mr. O. P. Bhatt (DIN: 00548091)"". Confirmed by user 2026-10-22.",,
 TATAMOTORS,person,P B Balaji,02762983,"Review #2: same person as P. B. Balaji (DIN 02762983, Tata Consumer). Confirmed by user 2026-10-22.",,
 TATAMOTORS,company,TMF Business Services Limited,,"Review #3: different companies; TMF Business Services was formerly called Tata Motors Finance Limited, a name another company now holds. User 2026-10-22.",Tata Motors Finance Limited,split
-TATAMOTORS,company,Jaguar Land Rover Limited,,"Review #4: separate companies; JLR was previously named Jaguar Cars Limited, a name a different company holds now. User 2026-10-22.",Jaguar Cars Limited,formerly_named
+TATAMOTORS,company,Jaguar Land Rover Limited,,"Review #4: separate companies. Tata Motors AOC-1 p.477 prints ""Jaguar Land Rover Limited (previously Jaguar Cars Limited)""; a different company holds that name now. User 2026-10-22.",Jaguar Cars Limited,formerly_named
 TATACONSUM,company,Tata Consultancy Service Limited,,"Review #5: typo in Tata Consumer's report for TCS. User 2026-10-22.",Tata Consultancy Services Limited,merge
 TCS,company,Tata Consultancy Services (Africa) (PTY) Ltd.,,"Review #6: different companies. User 2026-10-22.",Tata Consultancy Services (South Africa) (PTY) Ltd.,split
 TATAMOTORS,company,TML Business Services Limited,,"Review #7: different companies. User 2026-10-22.",TMF Business Services Limited,split

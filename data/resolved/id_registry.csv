@@ -1,0 +1,550 @@
+uid,type,name,keys,status,replaced_by,first_seen
+F-000001,AuditFirm,B S R & Co. LLP,frn:101248W/W-100022 | name:b s r and co llp,active,,2026-10-22
+F-000002,AuditFirm,Parikh & Associates,name:parlkh and assoclates,active,,2026-10-22
+F-000003,AuditFirm,Price Waterhouse & Co Chartered Accountants LLP,frn:304026E/E-300009 | name:prlce waterhouse and co chartered accountants llp,active,,2026-10-22
+F-000004,AuditFirm,Deloitte Haskins & Sells LLP,frn:117366W/W-100018 | name:deloltte hasklns and sells llp,active,,2026-10-22
+F-000005,AuditFirm,DR. ASIM KUMAR CHATTOPADHYAY,name:dr aslm kumar chattopadhyay,active,,2026-10-22
+F-000006,AuditFirm,Makarand M. Joshi & Co.,name:makarand m joshl and co,active,,2026-10-22
+C-000001,Company,The Tata Power Company Limited,tata power co ltd@,active,,2026-10-22
+C-000002,Company,The Indian Hotels Company Limited,lndlan hotels co ltd@,active,,2026-10-22
+C-000003,Company,Tata Chemicals Limited,tata chemlcals ltd@,active,,2026-10-22
+C-000004,Company,Tata Elxsi Limited,tata elxsl ltd@,active,,2026-10-22
+C-000005,Company,Tata Communications Limited,tata communlcatlons ltd@,active,,2026-10-22
+C-000006,Company,Tejas Networks Limited,tejas networks ltd@,active,,2026-10-22
+C-000007,Company,Hindustan Unilever Limited,hlndustan unllever ltd@,active,,2026-10-22
+C-000008,Company,Aadhar Housing Finance Limited,aadhar houslng flnance ltd@,active,,2026-10-22
+C-000009,Company,Tata Capital Limited,tata capltal ltd@,active,,2026-10-22
+C-000010,Company,HDFC Life Insurance Company Limited,hdfc llfe lnsurance co ltd@,active,,2026-10-22
+C-000011,Company,HDFC ERGO General Insurance Company Limited,hdfc ergo general lnsurance co ltd@,active,,2026-10-22
+C-000012,Company,HDFC Bank Limited,hdfc bank ltd@,active,,2026-10-22
+C-000013,Company,The Great Eastern Shipping Company Limited,great eastern shlpplng co ltd@,active,,2026-10-22
+C-000014,Company,Torrent Power Limited,torrent power ltd@,active,,2026-10-22
+C-000015,Company,Tata America International Corporation,tata amerlca lnternatlonal corp@us,active,,2026-10-22
+C-000016,Company,Tata Consultancy Services Canada Inc.,tata consultancy servlces canada lnc@canada,active,,2026-10-22
+C-000017,Company,Tata Consultancy Services Argentina S.A.,tata consultancy servlces argentlna sa@argentina,active,,2026-10-22
+C-000018,Company,Tata Consultancy Services Chile S.A.,tata consultancy servlces chlle sa@chile,active,,2026-10-22
+C-000019,Company,"Tata Consultancy Services De Mexico S.A., De C.V.",tata consultancy servlces de mexlco sa de cv@mexico,active,,2026-10-22
+C-000020,Company,Tata Consultancy Services Do Brasil Ltda,tata consultancy servlces do brasll ltda@brazil,active,,2026-10-22
+C-000021,Company,TCS Iberoamerica SA,tcs lberoamerlca sa@uruguay,active,,2026-10-22
+C-000022,Company,TCS Inversiones Chile Limitada,tcs lnverslones chlle llmltada@chile,active,,2026-10-22
+C-000023,Company,TCS Solution Center S.A.,tcs solutlon center sa@uruguay,active,,2026-10-22
+C-000024,Company,TATASOLUTION CENTER S.A.,tatasolutlon center sa@ecuador,active,,2026-10-22
+C-000025,Company,MGDC S.C.,mgdc sc@mexico,active,,2026-10-22
+C-000026,Company,TCS Uruguay S.A.,tcs uruguay sa@uruguay,active,,2026-10-22
+C-000027,Company,"Tata Consultancy Services Guatemala, S.A.",tata consultancy servlces guatemala sa@guatemala,active,,2026-10-22
+C-000028,Company,Tata Consultancy Services Belgium,tata consultancy servlces belglum@belgium,active,,2026-10-22
+C-000029,Company,Tata Consultancy Services De Espana S.A.,tata consultancy servlces de espana sa@spain,active,,2026-10-22
+C-000030,Company,Tata Consultancy Services Deutschland GmbH,tata consultancy servlces deutschland gmbh@germany,active,,2026-10-22
+C-000031,Company,Tata Consultancy Services Italia s.r.l.,tata consultancy servlces ltalla srl@italy,active,,2026-10-22
+C-000032,Company,Tata Consultancy Services Netherlands BV,tata consultancy servlces netherlands bv@netherlands,active,,2026-10-22
+C-000033,Company,Tata Consultancy Services Sverige AB,tata consultancy servlces sverlge ab@sweden,active,,2026-10-22
+C-000034,Company,"Tata Consultancy Services (Portugal) Unipessoal, Limitada",tata consultancy servlces portugal unlpessoal llmltada@portugal,active,,2026-10-22
+C-000035,Company,Diligenta Limited,dlllgenta ltd@uk,active,,2026-10-22
+C-000036,Company,Tata Consultancy Services Luxembourg S.A.,tata consultancy servlces luxembourg sa@luxembourg,active,,2026-10-22
+C-000037,Company,Tata Consultancy Services Switzerland Ltd.,tata consultancy servlces swltzerland ltd@switzerland,active,,2026-10-22
+C-000038,Company,Tata Consultancy Services France,tata consultancy servlces france@france,active,,2026-10-22
+C-000039,Company,Tata Consultancy Services Saudi Arabia,tata consultancy servlces saudl arabla@saudi arabia,active,,2026-10-22
+C-000040,Company,Tata Consultancy Services UK Limited,tata consultancy servlces uk ltd@uk,active,,2026-10-22
+C-000041,Company,TCS Business Services GmbH,tcs buslness servlces gmbh@germany,active,,2026-10-22
+C-000042,Company,Tata Consultancy Services Bulgaria EOOD,tata consultancy servlces bulgarla eood@bulgaria,active,,2026-10-22
+C-000043,Company,Tata Consultancy Services Ireland Limited,tata consultancy servlces lreland ltd@ireland,active,,2026-10-22
+C-000044,Company,TCS Technology Solutions GmbH,tcs technology solutlon gmbh@germany | tcs technology solutlons ag@germany | tcs technology solutlons gmbh@germany,active,,2026-10-22
+C-000045,Company,Tata Consultancy Services Osterreich GmbH,tata consultancy servlces osterrelch gmbh@austria,active,,2026-10-22
+C-000046,Company,Saudi Desert Rose Holding B.V.,saudl desert rose holdlng bv@netherlands,active,,2026-10-22
+C-000047,Company,Diligenta (Europe) B.V.,dlllgenta europe bv@netherlands,active,,2026-10-22
+C-000048,Company,Tata Consultancy Services Asia Pacific Pte Ltd.,tata consultancy servlces asla paclflc pte ltd@singapore,active,,2026-10-22
+C-000049,Company,Tata Consultancy Services Malaysia Sdn Bhd,tata consultancy servlces malaysla sdn bhd@malaysia,active,,2026-10-22
+C-000050,Company,TCS FNS Pty Limited,tcs fns pty ltd@australia,active,,2026-10-22
+C-000051,Company,TCS Financial Solutions Australia Pty Limited,tcs flnanclal solutlons australla pty ltd@australia,active,,2026-10-22
+C-000052,Company,PT Tata Consultancy Services Indonesia,pt tata consultancy servlces lndonesla@indonesia,active,,2026-10-22
+C-000053,Company,"Tata Consultancy Services (China) Co., Ltd.",tata consultancy servlces chlna co ltd@china,active,,2026-10-22
+C-000054,Company,"TCS Financial Solutions Beijing Co., Ltd.",tcs flnanclal solutlons beljlng co ltd@china,active,,2026-10-22
+C-000055,Company,Tata Consultancy Services (Thailand) Limited,tata consultancy servlces thalland ltd@thailand,active,,2026-10-22
+C-000056,Company,Tata Consultancy Services (Philippines) Inc.,tata consultancy servlces phlllpplnes lnc@philippines,active,,2026-10-22
+C-000057,Company,"Tata Consultancy Services Japan, Ltd.",tata consultancy servlces japan ltd@japan,active,,2026-10-22
+C-000058,Company,APTOnline Limited,aptonllne ltd@india,active,,2026-10-22
+C-000059,Company,C-Edge Technologies Limited,c edge technologles ltd@india,active,,2026-10-22
+C-000060,Company,MP Online Limited,mp onllne ltd@india,active,,2026-10-22
+C-000061,Company,TCS e-Serve International Limited,tcs e serve lnternatlonal ltd@india,active,,2026-10-22
+C-000062,Company,MahaOnline Limited,mahaonllne ltd@india,active,,2026-10-22
+C-000063,Company,Tata Consultancy Services (Africa) (PTY) Ltd.,tata consultancy servlces afrlca pty ltd@south africa,active,,2026-10-22
+C-000064,Company,Tata Consultancy Services (South Africa) (PTY) Ltd.,tata consultancy servlces south afrlca pty ltd@south africa,active,,2026-10-22
+C-000065,Company,Tata Consultancy Services Qatar L.L.C.,tata consultancy servlces qatar llc@qatar,active,,2026-10-22
+C-000066,Company,TCS Foundation,tcs foundatlon@india,active,,2026-10-22
+C-000067,Company,Tata Sons Private Limited,tata sons pvt ltd@,active,,2026-10-22
+C-000068,Company,Jaguar Land Rover Limited,jaguar land rover ltd@uk,active,,2026-10-22
+C-000069,Company,Tata Digital Private Limited,tata dlgltal pvt ltd@,active,,2026-10-22
+C-000070,Company,Tata Motors Finance Limited,tata motors flnance ltd@india,active,,2026-10-22
+C-000071,Company,Reliance Industries Ltd.,rellance lndustrles ltd@,active,,2026-10-22
+C-000072,Company,CCL Products (India) Ltd.,ccl products lndla ltd@,active,,2026-10-22
+C-000073,Company,Divi’s Laboratories Limited,dlvl s laboratorles ltd@,active,,2026-10-22
+C-000074,Company,Anant Raj Limited,anant raj ltd@,active,,2026-10-22
+C-000075,Company,SBI Life Insurance Company Limited,sbl llfe lnsurance co ltd@,active,,2026-10-22
+C-000076,Company,Tata Technologies Limited,tata technologles ltd@india,active,,2026-10-22
+C-000077,Company,Trident Limited,trldent ltd@,active,,2026-10-22
+C-000078,Company,Automobile Corporation of Goa Limited,automoblle corp of goa ltd@,active,,2026-10-22
+C-000079,Company,TML Business Services Limited,tml buslness servlces ltd@india,active,,2026-10-22
+C-000080,Company,TMF Business Services Limited,tmf buslness servlces ltd@india,active,,2026-10-22
+C-000081,Company,Tata Motors Insurance Broking & Advisory Services Ltd,tata motors lnsurance broklng and advlsory servlces ltd@india,active,,2026-10-22
+C-000082,Company,TMF Holdings Ltd,tmf holdlngs ltd@india,active,,2026-10-22
+C-000083,Company,Tata Motors Body Solutions Limited,tata motors body solutlons ltd@india,active,,2026-10-22
+C-000084,Company,Jaguar Land Rover India Limited,jaguar land rover lndla ltd@india,active,,2026-10-22
+C-000085,Company,Brabo Robotics and Automation Limited,brabo robotlcs and automatlon ltd@india,active,,2026-10-22
+C-000086,Company,Jaguar Land Rover Technology and Business Services India Private Limited,jaguar land rover technology and buslness servlces lndla pvt ltd@india,active,,2026-10-22
+C-000087,Company,Tata Motors Passenger Vehicles Limited,tata motors passenger vehlcles ltd@india,active,,2026-10-22
+C-000088,Company,TML CV Mobility Solutions Limited,tml cv moblllty solutlons ltd@india,active,,2026-10-22
+C-000089,Company,Tata Passenger Electric Mobility Limited,tata passenger electrlc moblllty ltd@india,active,,2026-10-22
+C-000090,Company,TML Smart City Mobility Solutions Limited,tml smart clty moblllty solutlons ltd@india,active,,2026-10-22
+C-000091,Company,TML Smart City Mobility Solutions (J&K) Private Limited,tml smart clty moblllty solutlons j and k pvt ltd@india,active,,2026-10-22
+C-000092,Company,Tata Daewoo Commercial Vehicle Co. Ltd,tata daewoo commerclal vehlcle co ltd@south korea,active,,2026-10-22
+C-000093,Company,Tata Motors Design Tech Centre plc,tata motors deslgn tech centre plc@uk,active,,2026-10-22
+C-000094,Company,Tata Motors (SA) (Proprietary) Limited,ceased to be subsldlary wef october 1 2023@south africa | tata motors sa proprletary ltd@south africa,active,,2026-10-22
+C-000095,Company,Tata Motors (Thailand) Limited,tata motors thalland ltd@thailand,active,,2026-10-22
+C-000096,Company,TML Holdings Pte Ltd,tml holdlngs pte ltd@singapore,active,,2026-10-22
+C-000097,Company,Tata Hispano Motors Carrocera S.A,tata hlspano motors carrocera sa@spain,active,,2026-10-22
+C-000098,Company,Tata Hispano Motors Carroceries Maghreb,tata hlspano motors carrocerles maghreb@morocco,active,,2026-10-22
+C-000099,Company,Trilix S.r.l,trlllx srl@italy,active,,2026-10-22
+C-000100,Company,Tata Precision Industries Pte Ltd,tata preclslon lndustrles pte ltd@singapore,active,,2026-10-22
+C-000101,Company,PT Tata Motors Indonesia,pt tata motors lndonesla@indonesia,active,,2026-10-22
+C-000102,Company,INCAT International Plc.,lncat lnternatlonal plc@uk,active,,2026-10-22
+C-000103,Company,Tata Technologies Inc.,tata technologles lnc@us,active,,2026-10-22
+C-000104,Company,"Tata Technologies de Mexico, S.A. de C.V.",tata technologles de mexlco sa de cv@mexico,active,,2026-10-22
+C-000105,Company,Cambric Limited,cambrlc ltd@bahamas,active,,2026-10-22
+C-000106,Company,"Tata Technolgies SRL, Romania",tata technolgles srl romanla@romania,active,,2026-10-22
+C-000107,Company,Tata Manufacturing Technologies Consulting (Shanghai) Limited,tata manufacturlng technologles consultlng shanghal ltd@china,active,,2026-10-22
+C-000108,Company,Tata Technologies Europe Limited,tata technologles europe ltd@uk,active,,2026-10-22
+C-000109,Company,Tata Technologies Nordics AB,tata technologles nordlcs ab@sweden,active,,2026-10-22
+C-000110,Company,Tata Technologies GmbH,tata technologles gmbh@germany,active,,2026-10-22
+C-000111,Company,Tata Technologies (Thailand) Limited,tata technologles thalland ltd@thailand,active,,2026-10-22
+C-000112,Company,TATA Technologies Pte Ltd.,tata technologles pte ltd@singapore,active,,2026-10-22
+C-000113,Company,Jaguar Land Rover Automotive plc,jaguar land rover automotlve plc@uk,active,,2026-10-22
+C-000114,Company,Jaguar Land Rover Holdings Limited,formally known as land rover@uk | jaguar land rover holdlngs ltd@uk,active,,2026-10-22
+C-000115,Company,JLR Nominee Company Limited,jlr nomlnee co ltd@uk,active,,2026-10-22
+C-000116,Company,Jaguar Land Rover (South Africa) Holdings Limited,jaguar land rover south afrlca holdlngs ltd@uk,active,,2026-10-22
+C-000117,Company,Jaguar Cars Limited,jaguar cars ltd@uk,active,,2026-10-22
+C-000118,Company,Land Rover Exports Limited,buslness transferred to jaguar land rover exports ltd@uk | land rover exports ltd@uk,active,,2026-10-22
+C-000119,Company,The Lanchester Motor Company Limited,lanchester motor co ltd@uk,active,,2026-10-22
+C-000120,Company,The Daimler Motor Company Limited,dalmler motor co ltd@uk,active,,2026-10-22
+C-000121,Company,S S Cars Limited,s s cars ltd@uk,active,,2026-10-22
+C-000122,Company,Daimler Transport Vehicles Limited,dalmler transport vehlcles ltd@uk,active,,2026-10-22
+C-000123,Company,Jaguar Land Rover Pension Trustees Limited,jaguar land rover penslon trustees ltd@uk,active,,2026-10-22
+C-000124,Company,Jaguar Cars (South Africa) (Pty) Ltd,jaguar cars south afrlca pty ltd@south africa,active,,2026-10-22
+C-000125,Company,Jaguar Land Rover Slovakia s.r.o.,jaguar land rover slovakla sro@slovakia,active,,2026-10-22
+C-000126,Company,Jaguar Racing Limited,jaguar raclng ltd@uk,active,,2026-10-22
+C-000127,Company,InMotion Ventures Limited,lnmotlon ventures ltd@uk,active,,2026-10-22
+C-000128,Company,In-Car Ventures Limited,ln car ventures ltd@uk,active,,2026-10-22
+C-000129,Company,InMotion Ventures 2 Limited,lnmotlon ventures 2 ltd@uk,active,,2026-10-22
+C-000130,Company,InMotion Ventures 3 Limited,lnmotlon ventures 3 ltd@uk,active,,2026-10-22
+C-000131,Company,Jaguar Land Rover Ireland (Services) Limited,jaguar land rover lreland servlces ltd@ireland,active,,2026-10-22
+C-000132,Company,Limited Liability Company Jaguar Land Rover,ltd llablllty co jaguar land rover@russia,active,,2026-10-22
+C-000133,Company,Jaguar Land Rover (China) Investment Co Ltd,jaguar land rover chlna lnvestment co ltd@china,active,,2026-10-22
+C-000134,Company,Shanghai Jaguar Land Rover Automotive Service Co. Ltd,shanghal jaguar land rover automotlve servlce co ltd@china,active,,2026-10-22
+C-000135,Company,Jaguar Land Rover Colombia SAS,jaguar land rover colombla sas@colombia,active,,2026-10-22
+C-000136,Company,Jaguar Landrover Mexico S.A.P I de C.V,jaguar landrover mexlco sap l de cv@mexico,active,,2026-10-22
+C-000137,Company,Jaguar Landrover Services Mexico S.A C.V,jaguar landrover servlces mexlco sa cv@mexico,active,,2026-10-22
+C-000138,Company,Jaguar Land Rover France SAS,jaguar land rover france sas@france,active,,2026-10-22
+C-000139,Company,"Jaguar Land Rover Portugal-Veiculos e Pecas, Lda.",jaguar land rover portugal velculos e pecas lda@portugal,active,,2026-10-22
+C-000140,Company,Jaguar Land Rover Espana SL,jaguar land rover espana sl@spain,active,,2026-10-22
+C-000141,Company,Jaguar Land Rover Italia SpA,jaguar land rover ltalla spa@italy,active,,2026-10-22
+C-000142,Company,Land Rover Ireland Limited -,land rover lreland ltd@ireland | no longer a tradlng nsc@ireland,active,,2026-10-22
+C-000143,Company,Jaguar Land Rover Korea Co. Ltd.,jaguar land rover korea co ltd@south korea,active,,2026-10-22
+C-000144,Company,Jaguar Land Rover Deutschland GmbH,jaguar land rover deutschland gmbh@germany,active,,2026-10-22
+C-000145,Company,Jaguar Land Rover Austria GmbH,jaguar land rover austrla gmbh@austria,active,,2026-10-22
+C-000146,Company,Jaguar Land Rover Australia Pty Limited,jaguar land rover australla pty ltd@australia,active,,2026-10-22
+C-000147,Company,"Jaguar Land Rover North America, LLC.",jaguar land rover north amerlca llc@us,active,,2026-10-22
+C-000148,Company,Jaguar Land Rover Japan Limited,jaguar land rover japan ltd@japan,active,,2026-10-22
+C-000149,Company,"Jaguar Land Rover Canada, ULC",jaguar land rover canada ulc@canada,active,,2026-10-22
+C-000150,Company,Jaguar e Land Rover Brasil Indústria e Comércio de Veículos LTDA,jaguar e land rover brasll lndústrla e comérclo de veículos ltda@brazil,active,,2026-10-22
+C-000151,Company,Jaguar Land Rover Belux N.V.,jaguar land rover belux nv@belgium,active,,2026-10-22
+C-000152,Company,Jaguar Land Rover Nederland BV,jaguar land rover nederland bv@netherlands,active,,2026-10-22
+C-000153,Company,Jaguar Land Rover (South Africa) (Pty) Limited,jaguar land rover south afrlca pty ltd@south africa,active,,2026-10-22
+C-000154,Company,Jaguar Land Rover Singapore Pte. Ltd,jaguar land rover slngapore pte ltd@singapore,active,,2026-10-22
+C-000155,Company,Jaguar Land Rover Taiwan Company Pte. Ltd,jaguar land rover talwan co pte ltd@taiwan,active,,2026-10-22
+C-000156,Company,Jaguar Land Rover Classic Deutschland GmbH,jaguar land rover classlc deutschland gmbh@germany,active,,2026-10-22
+C-000157,Company,Jaguar Land Rover Hungary KFT,jaguar land rover hungary kft@hungary,active,,2026-10-22
+C-000158,Company,Jaguar Land Rover Classic USA LLC,jaguar land rover classlc usa llc@us,active,,2026-10-22
+C-000159,Company,Bowler Motors Limited,bowler motors ltd@uk,active,,2026-10-22
+C-000160,Company,Jaguar Land Rover Ventures Limited,jaguar land rover ventures ltd@uk,active,,2026-10-22
+C-000161,Company,"Jaguar Land Rover (Ningbo) Trading Co., Ltd.",jaguar land rover nlngbo tradlng co ltd@china,active,,2026-10-22
+C-000162,Company,Tata Daewoo Commercial Vehicle Sales and Distribution Co. Ltd.,tata daewoo commerclal vehlcle sales and dlstrlbutlon co ltd@south korea,active,,2026-10-22
+C-000163,Company,PT Tata Motors Distribusi Indonesia,pt tata motors dlstrlbusl lndonesla@indonesia,active,,2026-10-22
+C-000164,Company,Tata Technologies Limited Employees Stock Option Trust,tata technologles ltd employees stock optlon trust@india,active,,2026-10-22
+C-000165,Company,INCAT International Limited ESOP 2000,lncat lnternatlonal ltd esop 2000@uk,active,,2026-10-22
+C-000166,Company,Tata Cummins Private Limited,tata cummlns pvt ltd@,active,,2026-10-22
+C-000167,Company,Fiat India Automobiles Private Limited,flat lndla automoblles pvt ltd@,active,,2026-10-22
+C-000168,Company,Tata Advance Systems Limited,tata advance systems ltd@,active,,2026-10-22
+C-000169,Company,Tata Capital Financial Services Limited,tata capltal flnanclal servlces ltd@,active,,2026-10-22
+C-000170,Company,Tata Motors Finance Holdings Limited,tata motors flnance holdlngs ltd@,active,,2026-10-22
+C-000171,Company,Tata Autocomp Systems Limited,tata autocomp systems ltd@,active,,2026-10-22
+C-000172,Company,TM Automotive Seating Systems Private Limited,tm automotlve seatlng systems pvt ltd@,active,,2026-10-22
+C-000173,Company,TACO Air International Thermal Systems Private Limited,taco alr lnternatlonal thermal systems pvt ltd@,active,,2026-10-22
+C-000174,Company,Tata Toyo Rediator Limited,tata toyo redlator ltd@,active,,2026-10-22
+C-000175,Company,Freight Commerce Solutions Private Limited,frelght commerce solutlons pvt ltd@,active,,2026-10-22
+C-000176,Company,Trent Limited,trent ltd@,active,,2026-10-22
+C-000177,Company,Voltas Limited,voltas ltd@,active,,2026-10-22
+C-000178,Company,Tata Investment Corporation Limited,tata lnvestment corp ltd@,active,,2026-10-22
+C-000179,Company,Titan Company Limited,tltan co ltd@,active,,2026-10-22
+C-000180,Company,Tata AIG General Insurance Company Limited,tata alg general lnsurance co ltd@ | tata alg general lnsurance ltd@,active,,2026-10-22
+C-000181,Company,HCL Technologies Limited,hcl technologles ltd@,active,,2026-10-22
+C-000182,Company,Delhivery Limited,delhlvery ltd@,active,,2026-10-22
+C-000183,Company,Reliance Power Limited,rellance power ltd@,active,,2026-10-22
+C-000184,Company,Nureca Limited,nureca ltd@,active,,2026-10-22
+C-000185,Company,SRF Limited,srf ltd@,active,,2026-10-22
+C-000186,Company,ABJA Investment Co. Pte. Ltd.,abja lnvestment co pte ltd@,active,,2026-10-22
+C-000187,Company,The Indian Steel & Wire Products Ltd,lndlan steel and wlre products ltd@,active,,2026-10-22
+C-000188,Company,Tata Steel Utilities and Infrastructure Services Limited,tata steel utllltles and lnfrastructure servlces ltd@,active,,2026-10-22
+C-000189,Company,Haldia Water Management Limited,haldla water management ltd@,active,,2026-10-22
+C-000190,Company,Tata Steel Business Delivery Centre Ltd.,tata steel buslness dellvery centre ltd@,active,,2026-10-22
+C-000191,Company,Tata Steel Special Economic Zone Limited,tata steel speclal economlc zone ltd@,active,,2026-10-22
+C-000192,Company,The Tata Pigments Limited,tata plgments ltd@,active,,2026-10-22
+C-000193,Company,Adityapur Toll Bridge Company Limited,adltyapur toll brldge co ltd@,active,,2026-10-22
+C-000194,Company,Mohar Export Services Pvt. Ltd,mohar export servlces pvt ltd@,active,,2026-10-22
+C-000195,Company,Rujuvalika Investments Limited,rujuvallka lnvestments ltd@,active,,2026-10-22
+C-000196,Company,Tata Korf Engineering Services Ltd,tata korf englneerlng servlces ltd@,active,,2026-10-22
+C-000197,Company,Neelachal Ispat Nigam Limited,neelachal lspat nlgam ltd@,active,,2026-10-22
+C-000198,Company,T Steel Holdings Pte. Ltd.,t steel holdlngs pte ltd@,active,,2026-10-22
+C-000199,Company,T S Global Holdings Pte. Ltd.,t s global holdlngs pte ltd@,active,,2026-10-22
+C-000200,Company,Orchid Netherlands (No.1) B.V.,orchld netherlands no 1 bv@,active,,2026-10-22
+C-000201,Company,The Siam Industrial Wire Company Ltd.,slam lndustrlal wlre co ltd@,active,,2026-10-22
+C-000202,Company,"TSN Wires Co., Ltd.",tsn wlres co ltd@,active,,2026-10-22
+C-000203,Company,Tata Steel Europe Limited,tata steel europe ltd@,active,,2026-10-22
+C-000204,Company,Apollo Metals Limited,apollo metals ltd@,active,,2026-10-22
+C-000205,Company,00030048 Limited,00030048 ltd@,active,,2026-10-22
+C-000206,Company,C V Benine,c v benlne@,active,,2026-10-22
+C-000207,Company,Catnic GmbH,catnlc gmbh@,active,,2026-10-22
+C-000208,Company,Tata Steel Mexico SA de CV,tata steel mexlco sa de cv@,active,,2026-10-22
+C-000209,Company,Cogent Power Limited,cogent power ltd@,active,,2026-10-22
+C-000210,Company,Corbeil Les Rives SCI,corbell les rlves scl@,active,,2026-10-22
+C-000211,Company,Corby (Northants) & District Water Company Limited,corby northants and dlstrlct water co ltd@,active,,2026-10-22
+C-000212,Company,Corus CNBV Investments,corus cnbv lnvestments@,active,,2026-10-22
+C-000213,Company,Corus Engineering Steels (UK) Limited,corus englneerlng steels uk ltd@,active,,2026-10-22
+C-000214,Company,Corus Engineering Steels Limited,corus englneerlng steels ltd@,active,,2026-10-22
+C-000215,Company,Corus Group Limited,corus group ltd@,active,,2026-10-22
+C-000216,Company,Corus Holdings Limited,corus holdlngs ltd@,active,,2026-10-22
+C-000217,Company,Corus International (Overseas Holdings) Limited,corus lnternatlonal overseas holdlngs ltd@,active,,2026-10-22
+C-000218,Company,Corus International Limited,corus lnternatlonal ltd@,active,,2026-10-22
+C-000219,Company,Corus International Romania SRL.,corus lnternatlonal romanla srl@,active,,2026-10-22
+C-000220,Company,Corus Ireland Limited,corus lreland ltd@,active,,2026-10-22
+C-000221,Company,Corus Property,corus property@,active,,2026-10-22
+C-000222,Company,Corus UK Healthcare Trustee Limited,corus uk healthcare trustee ltd@,active,,2026-10-22
+C-000223,Company,Crucible Insurance Company Limited,cruclble lnsurance co ltd@,active,,2026-10-22
+C-000224,Company,Degels GmbH,degels gmbh@,active,,2026-10-22
+C-000225,Company,Demka B.V.,demka bv@,active,,2026-10-22
+C-000226,Company,00026466 Limited,00026466 ltd@,active,,2026-10-22
+C-000227,Company,Fischer Profil GmbH,flscher profll gmbh@,active,,2026-10-22
+C-000228,Company,Gamble Simms Metals Limited,gamble slmms metals ltd@,active,,2026-10-22
+C-000229,Company,Grijze Poort B.V.,grljze poort bv@,active,,2026-10-22
+C-000230,Company,H E Samson Limited,h e samson ltd@,active,,2026-10-22
+C-000231,Company,Hadfields Holdings Limited,hadflelds holdlngs ltd@,active,,2026-10-22
+C-000232,Company,Halmstad Steel Service Centre AB,halmstad steel servlce centre ab@,active,,2026-10-22
+C-000233,Company,Hille & Muller GmbH,hllle and muller gmbh@,active,,2026-10-22
+C-000234,Company,Hille & Muller USA Inc.,hllle and muller usa lnc@,active,,2026-10-22
+C-000235,Company,Hoogovens USA Inc.,hoogovens usa lnc@,active,,2026-10-22
+C-000236,Company,Huizenbezit Breesaap B.V.,hulzenbezlt breesaap bv@,active,,2026-10-22
+C-000237,Company,Layde Steel S.L.,layde steel sl@,active,,2026-10-22
+C-000238,Company,Montana Bausysteme AG,montana bausysteme ag@,active,,2026-10-22
+C-000239,Company,Naantali Steel Service Centre OY,naantall steel servlce centre oy@,active,,2026-10-22
+C-000240,Company,Norsk Stal Tynnplater AS,norsk stal tynnplater as@,active,,2026-10-22
+C-000241,Company,Norsk Stal Tynnplater AB,norsk stal tynnplater ab@,active,,2026-10-22
+C-000242,Company,Oremco Inc.,oremco lnc@,active,,2026-10-22
+C-000243,Company,Rafferty-Brown Steel Co Inc Of Conn.,rafferty brown steel co lnc of conn@,active,,2026-10-22
+C-000244,Company,Runblast Limited,runblast ltd@,active,,2026-10-22
+C-000245,Company,S A B Profiel B.V.,s a b proflel bv@,active,,2026-10-22
+C-000246,Company,S A B Profil GmbH,s a b profll gmbh@,active,,2026-10-22
+C-000247,Company,Service Center Gelsenkirchen GmbH,servlce center gelsenklrchen gmbh@,active,,2026-10-22
+C-000248,Company,Service Centre Maastricht B.V.,servlce centre maastrlcht bv@,active,,2026-10-22
+C-000249,Company,Societe Europeenne De Galvanisation (Segal) Sa,soclete europeenne de galvanlsatlon segal sa@,active,,2026-10-22
+C-000250,Company,Surahammar Bruks AB,surahammar bruks ab@,active,,2026-10-22
+C-000251,Company,Tata Steel Belgium Packaging Steels N.V.,tata steel belglum packaglng steels nv@,active,,2026-10-22
+C-000252,Company,Tata Steel Belgium Services N.V.,tata steel belglum servlces nv@,active,,2026-10-22
+C-000253,Company,Tata Steel France Holdings SAS,tata steel france holdlngs sas@,active,,2026-10-22
+C-000254,Company,Tata Steel Germany GmbH,tata steel germany gmbh@,active,,2026-10-22
+C-000255,Company,Tata Steel IJmuiden BV,tata steel ljmulden bv@,active,,2026-10-22
+C-000256,Company,Tata Steel International (Americas) Holdings Inc,tata steel lnternatlonal amerlcas holdlngs lnc@,active,,2026-10-22
+C-000257,Company,Tata Steel International (Americas) Inc.,tata steel lnternatlonal amerlcas lnc@,active,,2026-10-22
+C-000258,Company,Tata Steel International (Czech Republic) S.R.O,tata steel lnternatlonal czech republlc sro@,active,,2026-10-22
+C-000259,Company,Tata Steel International (France) SAS,tata steel lnternatlonal france sas@,active,,2026-10-22
+C-000260,Company,Tata Steel International (Germany) GmbH,tata steel lnternatlonal germany gmbh@,active,,2026-10-22
+C-000261,Company,Tata Steel International (South America) Representações LTDA,tata steel lnternatlonal south amerlca representações ltda@,active,,2026-10-22
+C-000262,Company,Tata Steel International (Italia) SRL,tata steel lnternatlonal ltalla srl@,active,,2026-10-22
+C-000263,Company,Tata Steel International (Middle East) FZE,tata steel lnternatlonal mlddle east fze@,active,,2026-10-22
+C-000264,Company,Tata Steel International (Nigeria) Limited,tata steel lnternatlonal nlgerla ltd@,active,,2026-10-22
+C-000265,Company,Tata Steel International (Poland) sp Zoo,tata steel lnternatlonal poland spzoo@,active,,2026-10-22
+C-000266,Company,Tata Steel International (Sweden) AB,tata steel lnternatlonal sweden ab@,active,,2026-10-22
+C-000267,Company,Tata Steel International (India) Limited,tata steel lnternatlonal lndla ltd@,active,,2026-10-22
+C-000268,Company,Tata Steel International Iberica SA,tata steel lnternatlonal lberlca sa@,active,,2026-10-22
+C-000269,Company,Tata Steel Istanbul Metal Sanayi ve Ticaret AS,tata steel lstanbul metal sanayl ve tlcaret as@,active,,2026-10-22
+C-000270,Company,Tata Steel Maubeuge SAS,tata steel maubeuge sas@,active,,2026-10-22
+C-000271,Company,Tata Steel Nederland BV,tata steel nederland bv@,active,,2026-10-22
+C-000272,Company,Tata Steel Nederland Consulting & Technical Services BV,tata steel nederland consultlng and technlcal servlces bv@,active,,2026-10-22
+C-000273,Company,Tata Steel Nederland Services BV,tata steel nederland servlces bv@,active,,2026-10-22
+C-000274,Company,Tata Steel Nederland Technology BV,tata steel nederland technology bv@,active,,2026-10-22
+C-000275,Company,Tata Steel Nederland Tubes BV,tata steel nederland tubes bv@,active,,2026-10-22
+C-000276,Company,Tata Steel Netherlands Holdings B.V.,tata steel netherlands holdlngs bv@,active,,2026-10-22
+C-000277,Company,Tata Steel Norway Byggsystemer A/S,tata steel norway byggsystemer as@,active,,2026-10-22
+C-000278,Company,Tata Steel UK Consulting Limited,tata steel uk consultlng ltd@,active,,2026-10-22
+C-000279,Company,Tata Steel UK Limited,tata steel uk ltd@,active,,2026-10-22
+C-000280,Company,Tata Steel USA Inc.,tata steel usa lnc@,active,,2026-10-22
+C-000281,Company,The Newport And South Wales Tube Company Limited,newport and south wales tube co ltd@,active,,2026-10-22
+C-000282,Company,Thomas Processing Company,thomas processlng co@,active,,2026-10-22
+C-000283,Company,Thomas Steel Strip Corp.,thomas steel strlp corp@,active,,2026-10-22
+C-000284,Company,TS South Africa Sales Office Proprietary Limited,ts south afrlca sales offlce proprletary ltd@,active,,2026-10-22
+C-000285,Company,U.E.S Bright Bar Limited,ues brlght bar ltd@,active,,2026-10-22
+C-000286,Company,UK Steel Enterprise Limited,uk steel enterprlse ltd@,active,,2026-10-22
+C-000287,Company,Unitol SAS,unltol sas@,active,,2026-10-22
+C-000288,Company,Fischer Profil Produktions -und-Vertriebs - GmbH,flscher profll produktlons und vertrlebs gmbh@,active,,2026-10-22
+C-000289,Company,Al Rimal Mining LLC,al rlmal mlnlng llc@,active,,2026-10-22
+C-000290,Company,TSMUK Limited,tsmuk ltd@,active,,2026-10-22
+C-000291,Company,T S Canada Capital Ltd,t s canada capltal ltd@,active,,2026-10-22
+C-000292,Company,Tata Steel Minerals Canada Limited,tata steel mlnerals canada ltd@,active,,2026-10-22
+C-000293,Company,Tata Steel (Thailand) Public Company Limited,tata steel thalland publlc co ltd@,active,,2026-10-22
+C-000294,Company,Tata Steel Manufacturing (Thailand) Public Company Limited,tata steel manufacturlng thalland publlc co ltd@,active,,2026-10-22
+C-000295,Company,T S Global Procurement Company Pte. Ltd.,t s global procurement co pte ltd@,active,,2026-10-22
+C-000296,Company,Tata Steel International (Shanghai) Ltd.,tata steel lnternatlonal shanghal ltd@,active,,2026-10-22
+C-000297,Company,Tata Steel Downstream Products Limited,tata steel downstream products ltd@,active,,2026-10-22
+C-000298,Company,Tata Steel Advanced Materials Limited,tata steel advanced materlals ltd@,active,,2026-10-22
+C-000299,Company,Ceramat Private Limited,ceramat pvt ltd@,active,,2026-10-22
+C-000300,Company,Tata Steel TABB Limited,tata steel tabb ltd@,active,,2026-10-22
+C-000301,Company,Tayo Rolls Limited~,tayo rolls llmlted~@,active,,2026-10-22
+C-000302,Company,Tata Steel Foundation,tata steel foundatlon@,active,,2026-10-22
+C-000303,Company,Jamshedpur Football and Sporting Private Limited,jamshedpur football and sportlng pvt ltd@,active,,2026-10-22
+C-000304,Company,Bhubaneshwar Power Private Limited,bhubaneshwar power pvt ltd@,active,,2026-10-22
+C-000305,Company,Angul Energy Limited,angul energy ltd@,active,,2026-10-22
+C-000306,Company,Tata Steel Support Services Limited,tata steel support servlces ltd@,active,,2026-10-22
+C-000307,Company,Bhushan Steel (South) Ltd.,bhushan steel south ltd@,active,,2026-10-22
+C-000308,Company,Tata Steel Technical Services Limited,tata steel technlcal servlces ltd@,active,,2026-10-22
+C-000309,Company,Bhushan Steel (Australia) PTY Ltd.,bhushan steel australla pty ltd@,active,,2026-10-22
+C-000310,Company,Bowen Energy PTY Ltd.,bowen energy pty ltd@,active,,2026-10-22
+C-000311,Company,Bowen Coal PTY Ltd.,bowen coal pty ltd@,active,,2026-10-22
+C-000312,Company,Creative Port Development Private Limited,creatlve port development pvt ltd@,active,,2026-10-22
+C-000313,Company,Subarnarekha Port Private Limited,subarnarekha port pvt ltd@,active,,2026-10-22
+C-000314,Company,Medica TS Hospital Pvt. Ltd.,medlca ts hospltal pvt ltd@,active,,2026-10-22
+C-000315,Company,Dr. Reddy’s Laboratories Limited,dr reddy s laboratorles ltd@,active,,2026-10-22
+C-000316,Company,Dhanuka Agritech Limited,dhanuka agrltech ltd@,active,,2026-10-22
+C-000317,Company,Jubilant Ingrevia Limited,jubllant lngrevla ltd@,active,,2026-10-22
+C-000318,Company,Bikaji Foods International Limited,blkajl foods lnternatlonal ltd@,active,,2026-10-22
+C-000319,Company,Triveni Engineering And Industries Limited,trlvenl englneerlng and lndustrles ltd@,active,,2026-10-22
+C-000320,Company,Pidilite Industries Limited,pldlllte lndustrles ltd@,active,,2026-10-22
+C-000321,Company,Mahindra and Mahindra Limited,mahlndra and mahlndra ltd@,active,,2026-10-22
+C-000322,Company,Tech Mahindra Limited,tech mahlndra ltd@,active,,2026-10-22
+C-000323,Company,Piramal Enterprises Limited,plramal enterprlses ltd@,active,,2026-10-22
+C-000324,Company,Tata Consumer Products Capital Ltd.,tata consumer products capltal ltd@,active,,2026-10-22
+C-000325,Company,Tata Consumer Products UK Group Ltd.,tata consumer products uk group ltd@,active,,2026-10-22
+C-000326,Company,Tata Global Beverages Holdings Ltd.,tata global beverages holdlngs ltd@,active,,2026-10-22
+C-000327,Company,Tata Global Beverages Services Ltd.,tata global beverages servlces ltd@,active,,2026-10-22
+C-000328,Company,Tata Consumer Products GB Limited,tata consumer products gb ltd@,active,,2026-10-22
+C-000329,Company,Tata Consumer Products Overseas Holdings Ltd.,tata consumer products overseas holdlngs ltd@,active,,2026-10-22
+C-000330,Company,Tata Global Beverages Overseas Ltd.,tata global beverages overseas ltd@,active,,2026-10-22
+C-000331,Company,Lyons Tetley Limted,lyons tetley llmted@,active,,2026-10-22
+C-000332,Company,Drassington Ltd.,drasslngton ltd@,active,,2026-10-22
+C-000333,Company,Teapigs Ltd.,teaplgs ltd@,active,,2026-10-22
+C-000334,Company,Teapigs US LLC,teaplgs us llc@,active,,2026-10-22
+C-000335,Company,Stansand Ltd.,stansand ltd@,active,,2026-10-22
+C-000336,Company,Stansand Brokers Ltd.,stansand brokers ltd@,active,,2026-10-22
+C-000337,Company,Stansand (Africa) Ltd.,stansand afrlca ltd@,active,,2026-10-22
+C-000338,Company,Stansand (Central Africa) Ltd.,stansand central afrlca ltd@,active,,2026-10-22
+C-000339,Company,Tata Consumer Products Polska.sp.zo.o,tata consumer products polska spzoo@,active,,2026-10-22
+C-000340,Company,Tata Consumer Products US Holdings Inc.,tata consumer products us holdlngs lnc@,active,,2026-10-22
+C-000341,Company,Tata Consumer Products US Inc.,tata consumer products us lnc@,active,,2026-10-22
+C-000342,Company,Tata Waters LLC,tata waters llc@,active,,2026-10-22
+C-000343,Company,Good Earth Corporation,good earth corp@,active,,2026-10-22
+C-000344,Company,Good Earth Teas Inc.,good earth teas lnc@,active,,2026-10-22
+C-000345,Company,Tata Consumer Products Canada Inc.,tata consumer products canada lnc@,active,,2026-10-22
+C-000346,Company,Tata Consumer Products Australia Pty. Ltd.,tata consumer products australla pty ltd@,active,,2026-10-22
+C-000347,Company,Joekels Tea Packers (Proprietary) Ltd.,joekels tea packers proprletary ltd@,active,,2026-10-22
+C-000348,Company,Tata Consumer Products Bangladesh Ltd. [FormerlyTetley ACI (Bangladesh) Ltd.],tata consumer products bangladesh ltd [formerlytetley acl bangladesh ltd ]@,active,,2026-10-22
+C-000349,Company,Tata Global Beverages Investment Ltd.,tata global beverages lnvestment ltd@,active,,2026-10-22
+C-000350,Company,Suntyco Holdings Ltd.,suntyco holdlngs ltd@,active,,2026-10-22
+C-000351,Company,Onomento Co Ltd.,onomento co ltd@,active,,2026-10-22
+C-000352,Company,Tata Coffee Limited,tata coffee ltd@,active,,2026-10-22
+C-000353,Company,Tata Coffee Vietnam Company Limited,tata coffee vletnam co ltd@,active,,2026-10-22
+C-000354,Company,Consolidated Coffee Inc.,consolldated coffee lnc@,active,,2026-10-22
+C-000355,Company,Eight O'Clock Holdings Inc.,elght o clock holdlngs lnc@,active,,2026-10-22
+C-000356,Company,Eight O'Clock Coffee Company,elght o clock coffee co@,active,,2026-10-22
+C-000357,Company,Tata Tea Extractions Inc.,refer note 6@ | tata tea extractlons lnc@,active,,2026-10-22
+C-000358,Company,NourishCo Beverages Limited,nourlshco beverages ltd@,active,,2026-10-22
+C-000359,Company,Tata Consumer Soulfull Private Limited,tata consumer soulfull pvt ltd@,active,,2026-10-22
+C-000360,Company,Tata SmartFoodz Ltd.,tata smartfoodz ltd@,active,,2026-10-22
+C-000361,Company,TRIL Constructions Ltd.,trll constructlons ltd@,active,,2026-10-22
+C-000362,Company,Tata Tea Holdings Private Ltd.,tata tea holdlngs pvt ltd@,active,,2026-10-22
+C-000363,Company,Capital Foods Private Limited.,capltal foods pvt ltd@,active,,2026-10-22
+C-000364,Company,Supermarket Grocery Supplies Private Limited,supermarket grocery supplles pvt ltd@,active,,2026-10-22
+C-000365,Company,Innovative Retail Concepts Private Limited,lnnovatlve retall concepts pvt ltd@,active,,2026-10-22
+C-000366,Company,Tata Starbucks Private Limited,tata starbucks pvt ltd@,active,,2026-10-22
+C-000367,Company,Joekels Tea Packers,joekels tea packers@,active,,2026-10-22
+C-000368,Company,Kanan Devan Hills Plantation Company Private Limited,kanan devan hllls plantatlon co pvt ltd@,active,,2026-10-22
+C-000369,Company,Amalgamated Plantations Private Limited,amalgamated plantatlons pvt ltd@,active,,2026-10-22
+C-000370,Company,Tata Uganda Limited,tata uganda ltd@,active,,2026-10-22
+C-000371,Company,Infiniti Retail Limited,lnflnltl retall ltd@,active,,2026-10-22
+C-000372,Company,Tata Tea Limited Calcutta Provident Fund,tata tea ltd calcutta provldent fund@,active,,2026-10-22
+C-000373,Company,Infosys BPM Limited,lnfosys bpm ltd@india,active,,2026-10-22
+C-000374,Company,Infosys Automotive and Mobility GmbH & Co. KG,lnfosys automotlve and moblllty gmbh and co kg@germany,active,,2026-10-22
+C-000375,Company,Infosys McCamish Systems LLC,lnfosys mccamlsh system llc@us | lnfosys mccamlsh systems llc@us,active,,2026-10-22
+C-000376,Company,EdgeVerve Systems Limited (EdgeVerve),edgeverve systems ltd edgeverve@india,active,,2026-10-22
+C-000377,Company,Infosys Public Services,lnfosys publlc servlces lnc@us | lnfosys publlc servlces@us,active,,2026-10-22
+C-000378,Company,Infy Consulting Company Limited,lnfy consultlng co ltd@uk,active,,2026-10-22
+C-000379,Company,Infosys Poland Sp. z.o.o,lnfosys poland spzoo@poland,active,,2026-10-22
+C-000380,Company,Stater Nederland B.V.,stater nederland bv@netherlands,active,,2026-10-22
+C-000381,Company,"WongDoody, Inc",wongdoody lnc@us,active,,2026-10-22
+C-000382,Company,Infosys China,lnfosys chlna@china | lnfosys technologles chlna co ltd@china,active,,2026-10-22
+C-000383,Company,Blue Acorn iCi Inc,blue acorn lcl lnc@us,active,,2026-10-22
+C-000384,Company,Infosys Compaz PTE Ltd,lnfosys compaz pte ltd@singapore,active,,2026-10-22
+C-000385,Company,Infosys Consulting AG,lnfosys consultlng ag@switzerland,active,,2026-10-22
+C-000386,Company,Outbox systems Inc. dba Simplus,outbox systems lnc dba slmplus@us,active,,2026-10-22
+C-000387,Company,Infosys Mexico,lnfosys mexlco@mexico | lnfosys technologles s de r l de c v@mexico,active,,2026-10-22
+C-000388,Company,Infosys Consulting GmbH,lnfosys consultlng gmbh@germany,active,,2026-10-22
+C-000389,Company,Infosys (Czech Republic) Limited s.r.o.,lnfosys czech republlc ltd sro@czech republic,active,,2026-10-22
+C-000390,Company,Infosys Shanghai,lnfosys shanghal@china | lnfosys technologles shanghal co ltd@china,active,,2026-10-22
+C-000391,Company,Infosys Consulting Ltda,lnfosys consultlng ltda@brazil,active,,2026-10-22
+C-000392,Company,Infosys Consulting S.R.L.,lnfosys consultlng srl@romania,active,,2026-10-22
+C-000393,Company,"HIPUS Co., Ltd",hlpus co ltd@japan,active,,2026-10-22
+C-000394,Company,"Kaleidoscope Animations, Inc.",kaleldoscope anlmatlons lnc@us,active,,2026-10-22
+C-000395,Company,Portland Group Pty Ltd,portland group pty ltd@australia,active,,2026-10-22
+C-000396,Company,Panaya Ltd,panaya ltd@israel,active,,2026-10-22
+C-000397,Company,Fluido Oy,fluldo oy@finland,active,,2026-10-22
+C-000398,Company,Infosys Sweden,lnfosys sweden@sweden | lnfosys technologles sweden ab@sweden,active,,2026-10-22
+C-000399,Company,Infosys Management Consulting Pty Ltd,lnfosys management consultlng pty ltd@australia,active,,2026-10-22
+C-000400,Company,BASE life science A/S,base llfe sclence as@denmark,active,,2026-10-22
+C-000401,Company,Stater Belgium N.V./S.A.,stater belglum n v sa@belgium,active,,2026-10-22
+C-000402,Company,"GuideVision, s.r.o.",guldevlslon sro@czech republic,active,,2026-10-22
+C-000403,Company,Infosys Luxembourg S.a.r.l,lnfosys luxembourg sarl@luxembourg,active,,2026-10-22
+C-000404,Company,Stater N.V.,stater nv@netherlands,active,,2026-10-22
+C-000405,Company,Infosys Singapore Pte. Ltd,lnfosys slngapore pte ltd@singapore,active,,2026-10-22
+C-000406,Company,Infosys (Malaysia) SDN. BHD.,lnfosys malaysla sdn bhd@malaysia,active,,2026-10-22
+C-000407,Company,WongDoody GmbH,wongdoody gmbh@germany,active,,2026-10-22
+C-000408,Company,Simplus Australia Pty Ltd,slmplus australla pty ltd@australia,active,,2026-10-22
+C-000409,Company,Infosys Public Services Canada Inc.,lnfosys publlc servlces canada lnc@canada,active,,2026-10-22
+C-000410,Company,Fluido Sweden AB (Extero),fluldo sweden ab extero@sweden,active,,2026-10-22
+C-000411,Company,Infosys Fluido UK Ltd,lnfosys fluldo uk ltd@uk,active,,2026-10-22
+C-000412,Company,Infosys BPO Americas LLC,lnfosys bpo amerlcas llc@us,active,,2026-10-22
+C-000413,Company,Infy Consulting B.V.,lnfy consultlng bv@netherlands,active,,2026-10-22
+C-000414,Company,Infosys Chile SpA,lnfosys chlle spa@chile,active,,2026-10-22
+C-000415,Company,"Simplus Philippines, Inc.",slmplus phlllpplnes lnc@philippines,active,,2026-10-22
+C-000416,Company,HypoCasso B.V.,hypocasso bv@netherlands,active,,2026-10-22
+C-000417,Company,Infosys Consulting SAS,lnfosys consultlng sas@france,active,,2026-10-22
+C-000418,Company,Panaya Inc. (Panaya),panaya lnc panaya@us,active,,2026-10-22
+C-000419,Company,Infosys Middle East FZ LLC,lnfosys mlddle east fz llc@uae,active,,2026-10-22
+C-000420,Company,BASE life science AG,base llfe sclence ag@switzerland,active,,2026-10-22
+C-000421,Company,Fluido Norway A/S,fluldo norway as@norway,active,,2026-10-22
+C-000422,Company,Infosys Limited Bulgaria EOOD,lnfosys ltd bulgarla eood@bulgaria,active,,2026-10-22
+C-000423,Company,Infosys Consulting (Belgium) NV,lnfosys consultlng belglum nv@belgium,active,,2026-10-22
+C-000424,Company,Fluido Denmark A/S,fluldo denmark as@denmark,active,,2026-10-22
+C-000425,Company,Infosys Business Solutions LLC,lnfosys buslness solutlons llc@qatar,active,,2026-10-22
+C-000426,Company,Infosys Green Forum,lnfosys green forum@india,active,,2026-10-22
+C-000427,Company,BASE life science GmbH,base llfe sclence gmbh@germany,active,,2026-10-22
+C-000428,Company,BASE life science S.L.,base llfe sclence sl@spain,active,,2026-10-22
+C-000429,Company,Infosys Consulting S.R.L.,lnfosys consultlng srl@argentina,active,,2026-10-22
+C-000430,Company,BASE life science Ltd.,base llfe sclence ltd@uk,active,,2026-10-22
+C-000431,Company,GuideVision Magyarország Kft.,guldevlslon magyarország kft@hungary,active,,2026-10-22
+C-000432,Company,Infosys South Africa (Pty) Ltd,lnfosys south afrlca pty ltd@south africa,active,,2026-10-22
+C-000433,Company,GuideVision Polska SP. Z O.O.,guldevlslon polska spzoo@poland,active,,2026-10-22
+C-000434,Company,WongDoody d.o.o,wongdoody doo@serbia,active,,2026-10-22
+C-000435,Company,Danske IT and Support Services India Private Limited (“DIT”),danske lt and support servlces lndla pvt ltd “dlt”@india,active,,2026-10-22
+C-000436,Company,Infosys Austria GmbH,lnfosys austrla gmbh@austria,active,,2026-10-22
+C-000437,Company,WongDoody limited (Taipei),wongdoody ltd talpel@taiwan,active,,2026-10-22
+C-000438,Company,Panaya Germany GmbH,panaya germany gmbh@germany,active,,2026-10-22
+C-000439,Company,GuideVision Suomi Oy,guldevlslon suoml oy@finland,active,,2026-10-22
+C-000440,Company,Fluido Slovakia s.r.o,fluldo slovakla sro@slovakia,active,,2026-10-22
+C-000441,Company,Infosys Financial Services GmbH,lnfosys flnanclal servlces gmbh@germany,active,,2026-10-22
+C-000442,Company,GuideVision Deutschland GmbH,guldevlslon deutschland gmbh@germany,active,,2026-10-22
+C-000443,Company,"Infosys Fluido Ireland, Ltd.",lnfosys fluldo lreland ltd@ireland,active,,2026-10-22
+C-000444,Company,BASE life science S.r.l.,base llfe sclence srl@italy,active,,2026-10-22
+C-000445,Company,BASE life science S.A.S,base llfe sclence sas@france,active,,2026-10-22
+C-000446,Company,WongDoody (Shanghai) Co. Limited,wongdoody shanghal co ltd@china,active,,2026-10-22
+C-000447,Company,GuideVision UK Ltd,guldevlslon uk ltd@uk,active,,2026-10-22
+C-000448,Company,Infosys Norway,lnfosys norway as@norway | lnfosys norway@norway,active,,2026-10-22
+C-000449,Company,Stater Gmbh,stater gmbh@germany,active,,2026-10-22
+C-000450,Company,Stater XXL B.V.,stater xxl bv@netherlands,active,,2026-10-22
+C-000451,Company,BASE life science Inc.,base llfe sclence lnc@us,active,,2026-10-22
+C-000452,Company,Infosys Nova Holdings LLC.,lnfosys nova holdlngs llc@us | lnfosys nova@us,active,,2026-10-22
+C-000453,Company,Infosys Consulting Holding AG,lnfosys consultlng holdlng ag@switzerland,active,,2026-10-22
+C-000454,Company,Infosys Arabia Limited,lnfosys arabla ltd@saudi arabia,active,,2026-10-22
+C-000455,Company,Infosys Germany Holding Gmbh,lnfosys germany holdlng gmbh@germany,active,,2026-10-22
+C-000456,Company,Infosys Germany GmbH,lnfosys germany gmbh@germany,active,,2026-10-22
+C-000457,Company,Brilliant Basics Limited,brllllant baslcs ltd@uk,active,,2026-10-22
+C-000458,Company,Skava Systems Pvt. Ltd.,skava systems pvt ltd@india | skava systems@india,active,,2026-10-22
+C-000459,Company,Brilliant Basics Holdings Limited,brllllant baslcs holdlngs ltd@uk,active,,2026-10-22
+C-000460,Company,Infosys Turkey Bilgi Teknolojileri Limited Sirketi,lnfosys turkey bllgl teknolojllerl ltd slrketl@turkey,active,,2026-10-22
+C-000461,Company,Infosys BPM UK Limited,lnfosys bpm uk ltd@uk,active,,2026-10-22
+C-000462,Company,Simplus ANZ Pty Ltd.,slmplus anz pty ltd@australia,active,,2026-10-22
+C-000463,Company,Innovisor Inc.,lnnovlsor lnc@us,active,,2026-10-22
+C-000464,Company,Danske IT,danske lt@,active,,2026-10-22
+C-000465,Company,EdgeVerve,edgeverve@,active,,2026-10-22
+C-000466,Company,Fluido Sweden AB,fluldo sweden ab@,active,,2026-10-22
+C-000467,Company,Infosys America Inc.,lnfosys amerlca lnc@,active,,2026-10-22
+C-000468,Company,oddity space GmbH,oddlty space gmbh@,active,,2026-10-22
+C-000469,Company,oddity jungle GmbH,oddlty jungle gmbh@,active,,2026-10-22
+C-000470,Company,oddity code GmbH,oddlty code gmbh@,active,,2026-10-22
+C-000471,Company,Infosys Foundation,lnfosys foundatlon@,active,,2026-10-22
+L15491WB1962PLC031425,Company,Tata Consumer Products Limited,tata consumer products ltd@india,active,,2026-10-22
+L22210MH1995PLC084781,Company,Tata Consultancy Services Limited,tata consultancy servlce ltd@india | tata consultancy servlces ltd@india,active,,2026-10-22
+L27100MH1907PLC000260,Company,Tata Steel Limited,tata steel ltd@india,active,,2026-10-22
+L28920MH1945PLC004520,Company,Tata Motors Limited,tata motors ltd@india,active,,2026-10-22
+L85110KA1981PLC013115,Company,Infosys Limited,lnfosys ltd@india,active,,2026-10-22
+00004989,Person,Koushik Chatterjee,koushlk chatterjee@TATASTEEL,active,,2026-10-22
+00008886,Person,Keki Mistry,kekl mlstry@TCS,active,,2026-10-22
+00016304,Person,D. Sundaram,d sundaram@INFY,active,,2026-10-22
+00019437,Person,Bobby Parikh,bobby parlkh@INFY,active,,2026-10-22
+00024713,Person,Noel Naval Tata,noel naval tata@TATASTEEL,active,,2026-10-22
+00033808,Person,Vedika Bhandarkar,vedlka bhandarkar@TATAMOTORS,active,,2026-10-22
+00041245,Person,Nandan M. Nilekani,nandan m nllekanl@INFY,active,,2026-10-22
+00043265,Person,Shikha Sharma,shlkha sharma@TATACONSUM,active,,2026-10-22
+00045204,Person,Nitin Paranjpe,nltln paranjpe@INFY,active,,2026-10-22
+00121863,Person,N. Chandrasekaran,n chandrasekaran@TATACONSUM | n chandrasekaran@TATAMOTORS | n chandrasekaran@TATASTEEL | n chandrasekaran@TCS,active,,2026-10-22
+00161853,Person,Siraj Chaudhry,slraj chaudhry@TATACONSUM,active,,2026-10-22
+00162957,Person,Deepak Kapoor,deepak kapoor@TATASTEEL,active,,2026-10-22
+00169343,Person,Govind Iyer,govlnd lyer@INFY,active,,2026-10-22
+00230865,Person,Al-Noor Ramji,al noor ramjl@TATAMOTORS | al noor ramjl@TCS,active,,2026-10-22
+00356188,Person,Bharti Gupta Ramola,bhartl gupta ramola@TATASTEEL,active,,2026-10-22
+00423616,Person,Lakshmanan Krishna Kumar,l krlshnakumar@TATACONSUM | lakshmanan krlshna kumar@TATACONSUM,active,,2026-10-22
+00548091,Person,O P Bhatt,o p bhatt@TATAMOTORS | o p bhatt@TATASTEEL | o p bhatt@TCS,active,,2026-10-22
+01099097,Person,K. P. Krishnan,k p krlshnan@TATACONSUM,active,,2026-10-22
+01876159,Person,Salil Parekh,salll parekh@INFY,active,,2026-10-22
+02144558,Person,Saurabh Agrawal,saurabh agrawal@TATASTEEL,active,,2026-10-22
+02173566,Person,Bharat Puri,bharat purl@TATACONSUM | bharat purl@TATAMOTORS,active,,2026-10-22
+02449088,Person,V. K. Sharma,v k sharma@TATASTEEL,active,,2026-10-22
+02609263,Person,Usha Sangwan,usha sangwan@TATAMOTORS,active,,2026-10-22
+02762983,Person,P. B. Balaji,p b balajl@TATACONSUM | p b balajl@TATAMOTORS,active,,2026-10-22
+03083605,Person,T. V. Narendran,t v narendran@TATASTEEL,active,,2026-10-22
+03119361,Person,Girish Wagh,glrlsh wagh@TATAMOTORS,active,,2026-10-22
+03611983,Person,Pradeep Kumar Khosla,pradeep kumar khosla@TCS,active,,2026-10-22
+06365813,Person,Rajesh Gopinathan,rajesh goplnathan@TCS,active,,2026-10-22
+06954123,Person,Farida Khambata,farlda khambata@TATASTEEL,active,,2026-10-22
+07006215,Person,N G Subramaniam,n g subramanlam@TCS,active,,2026-10-22
+07121802,Person,Aarthi Subramanian,aarthl subramanlan@TCS,active,,2026-10-22
+07194259,Person,Sunil D’Souza,sunll d souza@TATACONSUM,active,,2026-10-22
+08002754,Person,Ajit Krishnakumar,ajlt krlshnakumar@TATACONSUM,active,,2026-10-22
+08035439,Person,Hanne Sorensen,hanne sorensen@TATAMOTORS | hanne sorensen@TCS,active,,2026-10-22
+08177291,Person,Michael Gibbs,mlchael glbbs@INFY,active,,2026-10-22
+08326836,Person,Don Callahan,don callahan@TCS,active,,2026-10-22
+08485334,Person,K V Chowdary,k v chowdary@TATAMOTORS,active,,2026-10-22
+08871753,Person,Mitsuhiko Yamashita,mltsuhlko yamashlta@TATAMOTORS,active,,2026-10-22
+09101763,Person,Chitra Nayak,chltra nayak@INFY,active,,2026-10-22
+09584874,Person,David Crean,davld crean@TATACONSUM,active,,2026-10-22
+10083454,Person,Shekhar C. Mande,shekhar c mande@TATASTEEL,active,,2026-10-22
+10106739,Person,K Krithivasan,k krlthlvasan@TCS,active,,2026-10-22
+10166891,Person,Helene Auriol Potier,helene aurlol potler@INFY,active,,2026-10-22
+P-000001,Person,Pradeep Manohar Gaitonde,pradeep manohar galtonde@TCS,active,,2026-10-22
+P-000002,Person,Samir Seksaria,samlr seksarla@TCS,active,,2026-10-22
+P-000003,Person,Maloy Kumar Gupta,maloy kumar gupta@TATAMOTORS,active,,2026-10-22
+P-000004,Person,Parvatheesam Kanchinadham,parvatheesam kanchlnadham@TATASTEEL,active,,2026-10-22
+P-000005,Person,Sivakumar Sivasankaran,slvakumar slvasankaran@TATACONSUM,active,,2026-10-22
+P-000006,Person,Neelabja Chakrabarty,neelabja chakrabarty@TATACONSUM,active,,2026-10-22
+P-000007,Person,Ashish Goenka,ashlsh goenka@TATACONSUM,active,,2026-10-22
+P-000008,Person,Uri Levine,url levlne@INFY,active,,2026-10-22
+P-000009,Person,Jayesh Sanghrajka,jayesh sanghrajka@INFY,active,,2026-10-22
+P-000010,Person,A.G.S. Manikantha,a g s manlkantha@INFY,active,,2026-10-22
+P-000011,Person,Manikantha A.G.S,manlkantha a g s@INFY,active,,2026-10-22
+G-000001,RelatedPartyGroup,Subsidiaries of the Company,TCS:subsldlarles of the co,active,,2026-10-22
+G-000002,RelatedPartyGroup,Subsidiaries of Tata Sons Private Limited,TCS:subsldlarles of tata sons pvt ltd,active,,2026-10-22
+G-000003,RelatedPartyGroup,Associates / joint ventures of Tata Sons Private Limited and their subsidiaries,TCS:assoclates jolnt ventures of tata sons pvt ltd and thelr subsldlarles,active,,2026-10-22
+G-000004,RelatedPartyGroup,Other related parties,TCS:other related partles,active,,2026-10-22
+G-000005,RelatedPartyGroup,Subsidiaries,TATASTEEL:subsldlarles,active,,2026-10-22
+G-000006,RelatedPartyGroup,Associates,TATASTEEL:assoclates,active,,2026-10-22
+G-000007,RelatedPartyGroup,Joint Ventures,TATASTEEL:jolnt ventures,active,,2026-10-22
+G-000008,RelatedPartyGroup,"Tata Sons Private Limited, its subsidiaries and joint ventures",TATASTEEL:tata sons pvt ltd lts subsldlarles and jolnt ventures,active,,2026-10-22
+G-000009,RelatedPartyGroup,Subsidiaries,TATACONSUM:subsldlarles,active,,2026-10-22
+G-000010,RelatedPartyGroup,Associates,TATACONSUM:assoclates,active,,2026-10-22
+G-000011,RelatedPartyGroup,Subsidiaries and Joint Ventures of Promoter,TATACONSUM:subsldlarles and jolnt ventures of promoter,active,,2026-10-22
+G-000012,RelatedPartyGroup,Joint Ventures,TATACONSUM:jolnt ventures,active,,2026-10-22
+G-000013,RelatedPartyGroup,Promoter,TATACONSUM:promoter,active,,2026-10-22

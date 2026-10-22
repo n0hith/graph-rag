@@ -1,6 +1,6 @@
 # Entity resolution summary
 
-Generated 2026-10-22 from code at commit `ceece06`. Resolved entities, relations, the merge log and the review list are in `data/resolved/` (gitignored).
+Generated 2026-10-22 from code at commit `088c5cd`. Resolved entities, relations, the merge log and the review list are in `data/resolved/` (gitignored).
 
 ## Before and after merging
 
@@ -93,7 +93,7 @@ Rule: two rows of the same report's subsidiary list are always two companies. Me
 
 | Relation | Count |
 |---|---|
-| RELATED_PARTY_TXN | 483 |
+| RELATED_PARTY_TXN | 479 |
 | SUBSIDIARY_OF | 402 |
 | DIRECTOR_OF | 102 |
 | KMP_OF | 18 |
