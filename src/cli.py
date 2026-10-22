@@ -378,12 +378,19 @@ def resolve() -> None:
     reports/resolution_summary.md."""
     from collections import Counter
 
-    from src.resolve.merge_entities import load_overrides, resolve as run_resolve, write_outputs
+    from src.resolve.ids import Registry, assign_uids
+    from src.resolve.merge_entities import apply_uids, load_overrides, resolve as run_resolve, write_outputs
     from src.resolve.report import write_resolution_summary
 
     settings = get_settings()
     res = run_resolve(settings.data_dir / "extracted", _companies(None),
                       load_overrides(settings.data_dir / "overrides" / "merges.csv"))
+    registry_path = settings.data_dir / "resolved" / "id_registry.csv"
+    registry = Registry.load(registry_path)
+    before = set(registry.rows)
+    uids, id_notes = assign_uids(res.entities, registry)
+    res = apply_uids(res, uids)
+    registry.save(registry_path)
     write_outputs(res, settings.data_dir / "resolved")
     path = write_resolution_summary(settings.data_dir.parent / "reports" / "resolution_summary.md", res)
     mentions, entities = Counter(m.kind for m in res.mentions), Counter(e["type"] for e in res.entities)
@@ -392,14 +399,50 @@ def resolve() -> None:
     for kind, label in [("person", "Person"), ("company", "Company"), ("firm", "AuditFirm"), ("group", "RelatedPartyGroup")]:
         typer.echo(f"  {label:<18} {mentions[kind]:>4} -> {entities[label]:<4} ({multi[label]} in more than one report)")
     typer.echo(f"Relations: {dict(Counter(r['type'] for r in res.relations))}")
+    typer.echo(f"Stable ids: {len(set(uids.values()))} in use, {len(set(registry.rows) - before)} new this run "
+               f"(registry: {registry_path})")
+    for n in id_notes:
+        typer.echo(f"  {n}")
     typer.secho(f"Uncertain matches for review (not merged): {len(res.uncertain)}", bold=True, fg=typer.colors.YELLOW)
     typer.echo(f"Wrote {settings.data_dir / 'resolved'} and {path}")
 
 
 @app.command()
-def load() -> None:
-    """Load resolved facts into Neo4j."""
-    _not_built(5)
+def load(
+    sanity: bool = typer.Option(True, help="Run the sanity queries after loading."),
+) -> None:
+    """Load data/resolved/ into Neo4j (constraints first, then MERGE, so re-running changes
+    nothing), print node/relationship counts and run the sanity queries."""
+    from neo4j import GraphDatabase
+    from neo4j.exceptions import ServiceUnavailable
+
+    from src.graph.load_neo4j import graph_counts, load_graph, load_resolved, run_sanity_queries
+
+    settings = get_settings()
+    entities, relations = load_resolved(settings.data_dir / "resolved")
+    auth = (settings.neo4j_user, settings.neo4j_password.get_secret_value())
+    try:
+        with GraphDatabase.driver(settings.neo4j_uri, auth=auth, notifications_min_severity="WARNING") as driver:
+            result = load_graph(driver, entities, relations)
+            nodes, rels = graph_counts(driver)
+            sanity_results = run_sanity_queries(driver) if sanity else {}
+    except ServiceUnavailable:
+        typer.secho(f"Cannot reach Neo4j at {settings.neo4j_uri}. Is it running? (docker compose up -d)",
+                    fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    typer.secho(f"Loaded {len(entities)} entities and {len(relations)} relations "
+                f"(removed as no longer in the data: {result['pruned_nodes']} nodes, "
+                f"{result['pruned_relationships']} relationships).", bold=True)
+    typer.secho("Nodes:", bold=True)
+    for label, n in nodes.items():
+        typer.echo(f"  {label:<18} {n}")
+    typer.secho("Relationships:", bold=True)
+    for rtype, n in rels.items():
+        typer.echo(f"  {rtype:<18} {n}")
+    for name, rows in sanity_results.items():
+        typer.secho(f"\n{name}: {len(rows)}", bold=True)
+        for row in rows:
+            typer.echo("  " + "; ".join(f"{k}={v}" for k, v in row.items()))
 
 
 @app.command("baseline-index")

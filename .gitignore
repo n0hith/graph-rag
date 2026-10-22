@@ -21,3 +21,4 @@ data/vector_store/*
 .idea/
 Thumbs.db
 .DS_Store
+!data/resolved/id_registry.csv

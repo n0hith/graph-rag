@@ -95,7 +95,7 @@ python -m src.cli --help
 | `check-rpt-amounts` | 3 | Check related-party amounts on the PDF page (party's row, FY2024 column, nature heading), record `amount_as_printed`, relabel a nature found under another printed heading, remove nil rows and struck-off companies; no LLM calls |
 | `check-dates` | 3 | Replace appointment/cessation dates later than the report's own date with the same person's other mention (`date_conflict` keeps the printed one); no LLM calls |
 | `resolve` | 4 | Entity resolution: people by DIN, then confirmed merges, then name; companies by CIN, then normalised name; look-alikes listed in `data/resolved/uncertain.csv`, not merged. Writes `data/resolved/` and `reports/resolution_summary.md`; no LLM calls |
-| `load` | 5 | Load into Neo4j |
+| `load` | 5 | Load `data/resolved/` into Neo4j: constraints and indexes, then MERGE on stable ids (re-running changes nothing; facts gone from the data are removed), node/relationship counts and three sanity queries. Stable ids: CIN, DIN, or the id saved in `data/resolved/id_registry.csv` (committed) |
 | `ask` | 6 | Graph question answering |
 | `eval` | 7 | Evaluation against the baseline |
 

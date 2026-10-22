@@ -17,6 +17,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -391,18 +392,25 @@ def resolve(extracted_dir: Path, companies: list[Company], overrides: list[dict]
     relations = _relations(facts_by_symbol, companies, fact_mentions, entity_id, by_id, entity_by_id)
     for frm, to, o in merged_into:
         relations.append({"type": "MERGED_INTO", "from": entity_id[frm.id], "to": entity_id[to.id],
-                          "note": o.get("note", ""), "sources": [{"source_doc": o["nse_symbol"], "page": None,
-                                                                   "evidence": o.get("note", ""), "fy": None}]})
+                          "note": o.get("note", ""), "sources": [_override_source(o)]})
     for frm, to, o in formerly_named:
         # A name link, not a company link: `from` was once called what `to` is called now.
         relations.append({"type": "FORMERLY_NAMED", "from": entity_id[frm.id], "to": entity_id[to.id],
-                          "former_name": to.name, "note": o.get("note", ""),
-                          "sources": [{"source_doc": o["nse_symbol"], "page": None, "evidence": o.get("note", ""),
-                                       "fy": None}]})
+                          "former_name": to.name, "note": o.get("note", ""), "sources": [_override_source(o)]})
     for u in uncertain:
         u.a_reports = ", ".join(entity_by_id[u.a_id]["reports"]) if u.a_id in entity_by_id else u.a_reports
         u.b_reports = ", ".join(entity_by_id[u.b_id]["reports"]) if u.b_id in entity_by_id else u.b_reports
     return Resolution(entities, relations, log, uncertain, mentions)
+
+
+def _override_source(o: dict) -> dict:
+    """The source a merges.csv note cites: its page ("p.307") and its quoted text."""
+    note = o.get("note", "")
+    page = re.search(r"\bp\.(\d+)", note)
+    quote = re.search(r'"([^"]+)"', note)
+    return {"source_doc": f"{o['nse_symbol']}.pdf", "page": int(page.group(1)) if page else None,
+            "evidence": quote.group(1) if quote else note, "fy": "FY2023-24", "fact_type": "override",
+            "reported_by": o["nse_symbol"]}
 
 
 def _entity(eid: str, kind: str, ms: list[Mention]) -> dict:
@@ -570,7 +578,9 @@ def _relations(facts_by_symbol, companies, fact_mentions, entity_id, by_id, enti
             target = next((x["id"] for x in entity_by_id.values() if x["type"] == "Company"
                            and anchor_key in {company_name(a).key for a in x["aliases"]}), None)
             if target:
-                out.append({"type": "GROUP_OF", "from": e["id"], "to": target, "sources": []})
+                # The group's label is the evidence: the first transaction row naming it.
+                first = next(r for r in out if r["type"] == "RELATED_PARTY_TXN" and r["to"] == e["id"])
+                out.append({"type": "GROUP_OF", "from": e["id"], "to": target, "sources": first["sources"][:1]})
     return out
 
 
@@ -593,3 +603,40 @@ def write_outputs(res: Resolution, out_dir: Path) -> None:
         w.writeheader()
         for u in res.uncertain:
             w.writerow({**asdict(u), "decision": ""})
+
+
+# ---------------------------------------------------------------- stable ids and relation keys
+
+# What makes a relation one relation: its type, its two ends, and these properties.
+RELATION_KEY = {
+    "DIRECTOR_OF": (), "KMP_OF": ("role",), "SUBSIDIARY_OF": (), "AUDITED_BY": ("audit_type",),
+    "RELATED_PARTY_TXN": ("nature", "amount_as_printed"), "GROUP_OF": (), "MERGED_INTO": (), "FORMERLY_NAMED": (),
+}
+
+
+def relation_key(r: dict) -> tuple:
+    return (r["type"], r["from"], r["to"], *(r.get(k) for k in RELATION_KEY[r["type"]]))
+
+
+def fold_relations(relations: list[dict]) -> list[dict]:
+    """One relation per key, sources combined: the same fact can reach one pair of entities
+    twice when two spellings of a party resolved to one company (Infosys p.253 prints
+    "Infosys Turkey Bilgi Teknolojileri Limited Sirketi" with and without a line break)."""
+    out: dict[tuple, dict] = {}
+    for r in relations:
+        key = relation_key(r)
+        if key not in out:
+            out[key] = {**r, "sources": list(r["sources"])}
+            continue
+        seen = {(s["source_doc"], s["page"], s["evidence"]) for s in out[key]["sources"]}
+        out[key]["sources"] += [s for s in r["sources"] if (s["source_doc"], s["page"], s["evidence"]) not in seen]
+    return list(out.values())
+
+
+def apply_uids(res: Resolution, uid: dict[str, str]) -> Resolution:
+    """The resolution with every run-local entity id replaced by its stable uid."""
+    entities = [{**e, "id": uid[e["id"]]} for e in res.entities]
+    relations = fold_relations([{**r, "from": uid[r["from"]], "to": uid[r["to"]]} for r in res.relations])
+    uncertain = [Uncertain(u.kind, uid.get(u.a_id, u.a_id), u.a_name, u.a_reports, uid.get(u.b_id, u.b_id), u.b_name,
+                           u.b_reports, u.reason) for u in res.uncertain]
+    return Resolution(entities, relations, res.log, uncertain, res.mentions)
