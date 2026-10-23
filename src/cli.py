@@ -712,8 +712,9 @@ def eval_score() -> None:
     with (eval_dir / "scores.jsonl").open("w", encoding="utf-8", newline="\n") as f:
         f.writelines(_json.dumps(r, ensure_ascii=False) + "\n" for r in scored)
     exports = settings.data_dir.parent / "exports"
-    n_judge = write_judge_handcheck(exports / "judge_handcheck.csv", eval_dir / "judge_blind_map.json",
-                                    questions, answers, grades)
+    hand_done = (Path(__file__).parent / "eval" / "judge_handcheck.jsonl").exists()
+    n_judge = len(grades) if hand_done else write_judge_handcheck(  # never overwrite the user's checked copy
+        exports / "judge_handcheck.csv", eval_dir / "judge_blind_map.json", questions, answers, grades)
     n_extract = write_extraction_check(exports / "extraction_check.csv", questions, answers,
                                        {k: v for k, v in extractions.items() if k in scores}, scores)
     # The user's hand check of every judge grade; the user's grade counts where they disagree.
