@@ -683,6 +683,9 @@ def eval_score() -> None:
         typer.echo(client.tracker.summary())
         raise typer.Exit(code=2)
 
+    # Reasons settled by inspecting the graph and the Cypher, for failures the route and score can't explain.
+    diagnoses = {(d["id"], d["system"]): d for d in map(_json.loads, (Path(__file__).parent / "eval" /
+                 "failure_diagnoses.jsonl").read_text(encoding="utf-8").splitlines()) if d}
     aliases = AliasIndex.from_entities(settings.data_dir / "resolved" / "entities.jsonl")
     scored, scores = [], {}
     for (qid, system), a in sorted(answers.items()):
@@ -698,10 +701,13 @@ def eval_score() -> None:
             items = AnswerItems(items=e["items"], says_none=e["says_none"])
             score = score_answer(key, items, aliases)
         scores[(qid, system)] = score
+        reason = "" if score.correct else provisional_reason(q, key, a, score)
+        if reason.startswith("to diagnose") and (qid, system) in diagnoses:
+            reason = f"{diagnoses[(qid, system)]['reason']} ({diagnoses[(qid, system)]['note']})"
         scored.append({"id": qid, "system": system, "category": q["category"], "key_type": key["type"],
                        "route": a["route"], "score": score.score, "correct": score.correct,
                        "precision": score.precision, "recall": score.recall, "items": items.items,
-                       "reason": "" if score.correct else provisional_reason(q, key, a, score),
+                       "reason": reason,
                        "what": "" if score.correct else describe(key, score)})
     with (eval_dir / "scores.jsonl").open("w", encoding="utf-8", newline="\n") as f:
         f.writelines(_json.dumps(r, ensure_ascii=False) + "\n" for r in scored)
