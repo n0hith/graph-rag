@@ -14,6 +14,13 @@ fixed: it will not change after seeing which system does better.
 | `text_only` | 15 | Facts that live in prose or financial statements, not in the graph (results, headcount, board meetings, CSR). The baseline should win these. |
 | `none_or_unanswerable` | 10 | 5 whose correct answer is "none" (e.g. Infosys directors on another pilot company's board) and 5 the reports can't answer (e.g. who audits a subsidiary). |
 
+**Actual mix (note added 2026-10-23, before any evaluation ran):** 16 `1hop` and 9
+`none_or_unanswerable`; the other categories are as planned. t091 ("Who audits Jaguar Land Rover
+Automotive plc?") was drafted as unanswerable. During verification a search of the full report
+text, not just the cited pages, found the auditor named on Tata Motors p.258: the corporate
+governance report's table of material subsidiaries lists KPMG, appointed September 11, 2017. Its
+gold is now that answer, and it moved to `1hop`. No replacement unanswerable question was drafted.
+
 Each of `1hop`, `aggregation` and `text_only` spreads across all five companies (3 or 4 per company).
 Two-company questions are included on purpose even where the strengthened baseline may now answer
 them: the test should show where each system wins, not favour one.

@@ -182,8 +182,11 @@ Not yet available (Phase 7).
   subsidiaries' own secretarial audit reports in the same PDF (Tata Motors has 2, Tata Steel
   has 1) are kept too, as separate `secretarial_audit_subsidiary_N.json` files tagged with
   the subsidiary's name, so they're never confused with the parent's own report.
-- Auditors of subsidiaries are usually not named in the parent company's report, so questions
-  about them are marked unanswerable from this data.
+- Auditors of subsidiaries are usually not named in the parent company's report. The exception
+  is the corporate governance report's table of material subsidiaries, which names each one's
+  statutory auditor (Tata Motors p.258: KPMG for the JLR companies, among others). Extraction
+  does not read that table, so the graph has no subsidiary auditors. Found during test-set
+  verification; deliberately not fixed before Phase 7 to avoid tuning to the test set.
 - Extraction accuracy: a 50-fact sample was checked against the source pages with AI
   assistance (45/47 confirmed, 0 wrong, 2 unconfirmed, now fixed), on top of the automatic
   checks: completeness against the AOC-1 rows and the directors' certificate, the
@@ -260,12 +263,13 @@ the system was tuned on them, so they would overstate its accuracy.
 
 - `src/eval/question_plan.md`: the test-set mix, fixed and committed before any question was
   drafted (15 1hop, 20 2hop, 15 3hop, 20 aggregation, 15 text_only, 10 none/unanswerable).
+  The actual mix is 16 1hop and 9 none/unanswerable: t091 moved to 1hop during verification
+  (see the plan's dated note), before any evaluation ran.
 - `src/eval/questions.jsonl`: 95 questions written from the PDFs (not the graph), each with a
   gold answer and the PDF pages to check it. None repeats or rewords a practice question
   (`src/qa/dev_questions.jsonl`, `src/eval/baseline_notes.md`). Verification was AI-assisted
-  (checked against the cited pages) plus the user's own counts for t055 and t067; 94 are
-  `verified: true`. t091 is still `verified: false`: its "unanswerable" gold is contradicted
-  by Tata Motors p.258, which names KPMG as JLR Automotive's statutory auditor.
+  (checked against the cited pages) plus the user's own counts for t055 and t067; all 95 are
+  `verified: true`.
 - No evaluation runs until the gold answers are verified against the PDFs and the scoring rules
   are agreed in writing. Only verified questions will count.
 
