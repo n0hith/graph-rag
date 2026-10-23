@@ -99,7 +99,8 @@ python -m src.cli --help
 | `load` | 5 | Load `data/resolved/` into Neo4j: constraints and indexes, then MERGE on stable ids (re-running changes nothing; facts gone from the data are removed), node/relationship counts and three sanity queries. Stable ids: CIN, DIN, or the id saved in `data/resolved/id_registry.csv` (committed) |
 | `ask` | 6 | Graph question answering: `--mode graph` (default; falls back to the baseline), `baseline`, or `both` side by side. Shows the answer, route, Cypher, paths and sources (doc + page) |
 | `dev-run` | 6 | Run the practice questions (`src/qa/dev_questions.jsonl`) and write `reports/dev_questions_run.md` |
-| `eval` | 7 | Evaluation against the baseline |
+| `eval` | 7 | Answer every verified test question with both systems once (resumable; answers in `data/eval/answers.jsonl`) |
+| `eval-score` | 7 | Score the answers (`src/eval/score.py`, `src/eval/scoring_key.jsonl`), export the judge grades and item extractions for hand checking, write `reports/eval_results.md` |
 
 ## Project layout
 

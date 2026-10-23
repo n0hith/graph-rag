@@ -624,6 +624,104 @@ def run_eval() -> None:
     typer.echo(client.tracker.summary())
 
 
+@app.command("eval-score")
+def eval_score() -> None:
+    """Phase 7: score the answers (src/eval/score.py): blind item extraction + matching, the text-only judge,
+    hand-check exports and reports/eval_results.md. Resumable; needs every answer from `eval` first."""
+    import json as _json
+
+    from src.eval.eval_report import describe, write_report
+    from src.eval.run_eval import INFRA_ERRORS, SYSTEMS, load_answers, load_questions
+    from src.eval.score import (AliasIndex, AnswerItems, extract_items, gold_text, judge, provisional_reason,
+                                run_llm_steps, score_answer, write_extraction_check, write_judge_handcheck)
+    from src.eval.summary import _git_head
+
+    settings = get_settings()
+    eval_dir = settings.data_dir / "eval"
+    questions = {q["id"]: q for q in load_questions(Path(__file__).parent / "eval" / "questions.jsonl")}
+    keys = {k["id"]: k for k in map(_json.loads, (Path(__file__).parent / "eval" / "scoring_key.jsonl")
+                                    .read_text(encoding="utf-8").splitlines()) if k}
+    answers = load_answers(eval_dir / "answers.jsonl")
+    missing = [(qid, s) for qid in questions for s in SYSTEMS if (qid, s) not in answers]
+    if missing:
+        typer.secho(f"{len(missing)} answers still missing (first: {missing[0]}); run `eval` first.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    unkeyed = [qid for qid, q in questions.items() if q["category"] != "text_only" and qid not in keys]
+    if unkeyed:
+        typer.secho(f"No scoring key for {unkeyed}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    client = build_client(settings, purpose="qa")
+    client.fallback_model = None
+    state = {"quota": False, "retry": 0}
+
+    def on_error(qid: str, step: str, exc: Exception) -> bool:
+        if isinstance(exc, DailyLimitReached):
+            state["quota"] = True
+            typer.secho(f"{step} {qid}: daily quota used up; stopping, resume after the reset", fg=typer.colors.YELLOW)
+            return False
+        if isinstance(exc, INFRA_ERRORS):
+            state["retry"] += 1
+            typer.echo(f"{step} {qid}: infrastructure failure, will retry next run: {type(exc).__name__}")
+            return True
+        raise exc
+
+    extractions = run_llm_steps(
+        questions, answers, eval_dir / "extractions.jsonl", "extract",
+        lambda q, a: extract_items(client, q["question"], a["answer"]),
+        lambda q, a: q["category"] != "text_only" and a["route"] != "clarify", on_error)
+    grades = {} if state["quota"] else run_llm_steps(
+        questions, answers, eval_dir / "judge_grades.jsonl", "judge",
+        lambda q, a: judge(client, q["question"], gold_text(q), a["answer"]),
+        lambda q, a: q["category"] == "text_only", on_error)
+    needed_x = sum(1 for (qid, s), a in answers.items()
+                   if questions[qid]["category"] != "text_only" and a["route"] != "clarify")
+    needed_j = sum(1 for (qid, s) in answers if questions[qid]["category"] == "text_only")
+    if len(extractions) < needed_x or len(grades) < needed_j:
+        typer.secho(f"Extractions {len(extractions)}/{needed_x}, judge grades {len(grades)}/{needed_j}: "
+                    "run `eval-score` again to finish.", bold=True)
+        typer.echo(client.tracker.summary())
+        raise typer.Exit(code=2)
+
+    aliases = AliasIndex.from_entities(settings.data_dir / "resolved" / "entities.jsonl")
+    scored, scores = [], {}
+    for (qid, system), a in sorted(answers.items()):
+        q = questions[qid]
+        if q["category"] == "text_only":
+            continue
+        key = keys[qid]
+        if a["route"] == "clarify":
+            items = AnswerItems(items=[], says_none=False)
+            score = score_answer({"type": "list", "items": [["n:-"]]}, items, aliases)  # clarification: wrong
+        else:
+            e = extractions[(qid, system)]
+            items = AnswerItems(items=e["items"], says_none=e["says_none"])
+            score = score_answer(key, items, aliases)
+        scores[(qid, system)] = score
+        scored.append({"id": qid, "system": system, "category": q["category"], "key_type": key["type"],
+                       "route": a["route"], "score": score.score, "correct": score.correct,
+                       "precision": score.precision, "recall": score.recall, "items": items.items,
+                       "reason": "" if score.correct else provisional_reason(q, key, a, score),
+                       "what": "" if score.correct else describe(key, score)})
+    with (eval_dir / "scores.jsonl").open("w", encoding="utf-8", newline="\n") as f:
+        f.writelines(_json.dumps(r, ensure_ascii=False) + "\n" for r in scored)
+    exports = settings.data_dir.parent / "exports"
+    n_judge = write_judge_handcheck(exports / "judge_handcheck.csv", eval_dir / "judge_blind_map.json",
+                                    questions, answers, grades)
+    n_extract = write_extraction_check(exports / "extraction_check.csv", questions, answers,
+                                       {k: v for k, v in extractions.items() if k in scores}, scores)
+    commits = sorted({a["commit"] for a in answers.values()})
+    header = [f"Answers produced at code commit(s) {', '.join(f'`{c}`' for c in commits)} with "
+              f"`{client.default_model}` (fallback model off), temperature 0, one run per system; scored at "
+              f"commit `{_git_head()}` by `eval-score` (src/eval/score.py, src/eval/scoring_key.jsonl). "
+              f"{len(questions)} verified questions x {len(SYSTEMS)} systems."]
+    path = write_report(settings.data_dir.parent / "reports" / "eval_results.md", questions, answers, scored,
+                        list(grades.values()), header)
+    typer.secho(f"Wrote {path}; hand-check files: {n_judge} judge grades in exports/judge_handcheck.csv, "
+                f"{n_extract} extractions in exports/extraction_check.csv", bold=True)
+    typer.echo(client.tracker.summary())
+
+
 # ---------------------------------------------------------------- setup checks
 
 
