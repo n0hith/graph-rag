@@ -1,6 +1,6 @@
 # Entity resolution summary
 
-Generated 2026-10-22 from code at commit `02dc718`. Resolved entities, relations, the merge log and the review list are in `data/resolved/` (gitignored).
+Generated 2026-10-22 from code at commit `14080ac`. Resolved entities, relations, the merge log and the review list are in `data/resolved/` (gitignored).
 
 ## Before and after merging
 
