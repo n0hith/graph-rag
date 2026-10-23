@@ -160,7 +160,24 @@ python -m src.cli sectionize -c INFY --force   # redo one company
 
 ## Evaluation results
 
-Not yet available (Phase 7).
+Phase 7, 95 verified questions, both systems run once with `gemini-3.5-flash-lite` at
+temperature 0. Full tables, failure list with reasons, and every answer:
+`reports/eval_results.md`. Mean score per question (F1 for lists, 1/0 otherwise; fully correct
+in brackets):
+
+| Category | n | Graph | Baseline | Winner |
+|---|---|---|---|---|
+| 1hop | 16 | 0.98 (94%) | 0.92 (88%) | graph |
+| 2hop | 20 | 0.88 (80%) | 0.75 (60%) | graph |
+| 3hop | 15 | 0.62 (53%) | 0.37 (20%) | graph |
+| aggregation | 20 | 0.54 (35%) | 0.58 (35%) | baseline |
+| none/unanswerable | 9 | 0.67 | 0.89 | baseline |
+| All except text-only | 80 | 0.74 (65%) | 0.68 (55%) | graph |
+| text_only (judge, hand-checked) | 15 | 0.87 | 0.87 | tie |
+
+- Neither system got any of the four aggregation counts right; the graph fell back to the
+  baseline on all four.
+- Text-only: the LLM judge agreed with the user's hand check on 28 of 30 grades (93%).
 
 ## Known limitations
 
@@ -260,7 +277,7 @@ the system was tuned on them, so they would overstate its accuracy.
   shared in chat and is only safe to keep while on the free tier), and set a spend cap on that
   project before switching models.
 
-## Phase 7: evaluation (in progress)
+## Phase 7: evaluation (complete; results above and in `reports/eval_results.md`)
 
 - `src/eval/question_plan.md`: the test-set mix, fixed and committed before any question was
   drafted (15 1hop, 20 2hop, 15 3hop, 20 aggregation, 15 text_only, 10 none/unanswerable).
@@ -271,8 +288,12 @@ the system was tuned on them, so they would overstate its accuracy.
   (`src/qa/dev_questions.jsonl`, `src/eval/baseline_notes.md`). Verification was AI-assisted
   (checked against the cited pages) plus the user's own counts for t055 and t067; all 95 are
   `verified: true`.
-- No evaluation runs until the gold answers are verified against the PDFs and the scoring rules
-  are agreed in writing. Only verified questions will count.
+- Scoring followed `src/eval/scoring_rules.md`. Before any answer was read, a blind LLM item
+  extractor plus deterministic matching (`src/eval/score.py`, `src/eval/scoring_key.jsonl`) was
+  committed. The user spot-checked 24 of the 159 extractions and found no errors. Failures the
+  route and score couldn't explain were diagnosed against the graph
+  (`src/eval/failure_diagnoses.jsonl`). The user hand-checked all 30 judge grades
+  (`src/eval/judge_handcheck.jsonl`).
 
 ## Phase 3: fact extraction
 

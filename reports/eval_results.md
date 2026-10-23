@@ -1,6 +1,6 @@
 # Phase 7 evaluation results
 
-Answers produced at code commit(s) `fcc5dd9` with `gemini-3.5-flash-lite` (fallback model off), temperature 0, one run per system; scored at commit `fb0ea7f` by `eval-score` (src/eval/score.py, src/eval/scoring_key.jsonl). 95 verified questions x 2 systems.
+Answers produced at code commit(s) `fcc5dd9` with `gemini-3.5-flash-lite` (fallback model off), temperature 0, one run per system; scored at commit `1e25cc0` by `eval-score` (src/eval/score.py, src/eval/scoring_key.jsonl). 95 verified questions x 2 systems.
 
 ## Results by category (automatic scoring)
 
@@ -14,6 +14,8 @@ Per question: F1 for lists, 1 or 0 for numbers and none/unanswerable. Fully corr
 | aggregation | 20 | 0.54 | 35% | 0.58 | 35% | baseline |
 | none_or_unanswerable | 9 | 0.67 | 67% | 0.89 | 89% | baseline |
 | **All except text-only** | 80 | 0.74 | 65% | 0.68 | 55% | graph |
+
+Item extraction was spot-checked by the user (24 of the 159 extractions in `exports/extraction_check.csv`): every one listed exactly what the answer claims, with values attached and "none" marked correctly; no extraction errors found.
 
 ### By answer type
 
@@ -30,18 +32,25 @@ Per question: F1 for lists, 1 or 0 for numbers and none/unanswerable. Fully corr
 | none_or_unanswerable | graph | 0 | - | - | 0 | - | 9 | 67% |
 | none_or_unanswerable | baseline | 0 | - | - | 0 | - | 9 | 89% |
 
-## Text-only (LLM judge, provisional)
+## Text-only (LLM judge, hand-checked)
 
-The judge's grades, before the user's hand check of all of them; the user's grade replaces the judge's where they disagree, and the agreement rate is added then. Hand-check file: `exports/judge_handcheck.csv`.
+The judge graded all 30 answers; the user hand-checked every grade, and the user's grade counts where they disagree (src/eval/judge_handcheck.jsonl).
 
-| System | Questions | Mean judge grade | Grade 1 | Grade 0.5 | Grade 0 |
-|---|---|---|---|---|---|
-| graph | 15 | 0.83 | 12 | 1 | 2 |
-| baseline | 15 | 0.83 | 12 | 1 | 2 |
+| System | Questions | Mean grade (final) | Grade 1 | Grade 0.5 | Grade 0 | Mean judge grade | Winner |
+|---|---|---|---|---|---|---|---|
+| graph | 15 | 0.87 | 13 | 0 | 2 | 0.83 | tie |
+| baseline | 15 | 0.87 | 13 | 0 | 2 | 0.83 | tie |
+
+Judge agreement with the user's hand check: 28/30 = 93%.
+
+Grades the user changed:
+
+- t078 (baseline, hand-check row 7): judge 0.5 -> user 1; same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'
+- t078 (graph, hand-check row 21): judge 0.5 -> user 1; same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'
 
 ## Failure list
 
-Every question a system got less than fully right (text-only excluded until the hand check). Reasons come from the fixed set in the scoring rules.
+Every question a system got less than fully right. Reasons come from the fixed set in the scoring rules.
 
 | id | category | system | route | score | reason | what was wrong |
 |---|---|---|---|---|---|---|
@@ -105,6 +114,10 @@ Every question a system got less than fully right (text-only excluded until the 
 | t068 | aggregation | graph | baseline | 0.75 | fell back to the baseline; partial list | missing: Infosys Green Forum; Skava Systems Pvt. Ltd. |
 | t069 | aggregation | baseline | baseline | 0.67 | retrieval miss (baseline) | missing: Infosys BPM Limited |
 | t069 | aggregation | graph | baseline | 0.67 | fell back to the baseline; retrieval miss (baseline) | missing: Infosys BPM Limited |
+| t081 | text_only | baseline | baseline | 0.00 | wrong value | grade 0: The answer failed to state the correct number of board meetings from the report. |
+| t081 | text_only | graph | baseline | 0.00 | fell back to the baseline; wrong value | grade 0: The answer failed to state the correct number of board meetings from the report. |
+| t085 | text_only | baseline | baseline | 0.00 | wrong value | grade 0: The answer states an incorrect total CSR spend instead of the gold answer of ₹577 crore. |
+| t085 | text_only | graph | baseline | 0.00 | fell back to the baseline; wrong value | grade 0: The answer states an incorrect total CSR spend instead of the gold answer of ₹577 crore. |
 | t086 | none_or_unanswerable | graph | clarify | 0.00 | asked for clarification | gave: |
 | t089 | none_or_unanswerable | baseline | baseline | 0.00 | invented answer | gave: Tata Steel UK Limited (TSUK); Tata International West Asia DMCC (TIWA); Tata Steel Downstream Products Limited; Tata Motors Limited |
 | t089 | none_or_unanswerable | graph | baseline | 0.00 | invented answer | gave: Tata Steel UK Limited (TSUK); Tata International West Asia DMCC (TIWA); Tata Steel Downstream Products Limited; Tata Motors Limited |
@@ -718,92 +731,92 @@ Every question a system got less than fully right (text-only excluded until the 
 ### t071 (text_only): What was TCS's LTM attrition rate in IT services for FY2024?
 
 - Gold: 12.5%
-- graph [baseline; judge 1 (provisional)]: TCS's LTM attrition rate in IT services for FY 2024 was 12.5% [Tata Consultancy Services Limited, pp. 6-7, 8].
-- baseline [baseline; judge 1 (provisional)]: TCS's LTM attrition rate in IT services for FY 2024 was 12.5% [Tata Consultancy Services Limited, pp. 6-7, 8].
+- graph [baseline; grade 1 (judge 1)]: TCS's LTM attrition rate in IT services for FY 2024 was 12.5% [Tata Consultancy Services Limited, pp. 6-7, 8].
+- baseline [baseline; grade 1 (judge 1)]: TCS's LTM attrition rate in IT services for FY 2024 was 12.5% [Tata Consultancy Services Limited, pp. 6-7, 8].
 
 ### t072 (text_only): What was TCS's consolidated revenue from operations in FY2024?
 
 - Gold: ₹2,40,893 crore
-- graph [baseline; judge 1 (provisional)]: TCS's consolidated revenue from operations in FY 2024 was ₹2,40,893 crore [Tata Consultancy Services Limited, p. 4, 57].
-- baseline [baseline; judge 1 (provisional)]: TCS's consolidated revenue from operations in FY 2024 was ₹2,40,893 crore [Tata Consultancy Services Limited, p. 4, 57].
+- graph [baseline; grade 1 (judge 1)]: TCS's consolidated revenue from operations in FY 2024 was ₹2,40,893 crore [Tata Consultancy Services Limited, p. 4, 57].
+- baseline [baseline; grade 1 (judge 1)]: TCS's consolidated revenue from operations in FY 2024 was ₹2,40,893 crore [Tata Consultancy Services Limited, p. 4, 57].
 
 ### t073 (text_only): How much did TCS spend on CSR projects in FY2024?
 
 - Gold: ₹813 crore
-- graph [baseline; judge 1 (provisional)]: Based on the provided reports, TCS spent ₹813 crore on CSR projects (both Ongoing Project and other than Ongoing Project) for the financial year ended March 31, 2024 [Tata Consultancy Services Limited, p. 65].
-- baseline [baseline; judge 1 (provisional)]: Based on the provided reports, TCS spent ₹813 crore on CSR projects (both Ongoing Project and other than Ongoing Project) for the financial year ended March 31, 2024 [Tata Consultancy Services Limited, p. 65].
+- graph [baseline; grade 1 (judge 1)]: Based on the provided reports, TCS spent ₹813 crore on CSR projects (both Ongoing Project and other than Ongoing Project) for the financial year ended March 31, 2024 [Tata Consultancy Services Limited, p. 65].
+- baseline [baseline; grade 1 (judge 1)]: Based on the provided reports, TCS spent ₹813 crore on CSR projects (both Ongoing Project and other than Ongoing Project) for the financial year ended March 31, 2024 [Tata Consultancy Services Limited, p. 65].
 
 ### t074 (text_only): How many Board meetings did Tata Motors hold in FY24?
 
 - Gold: 7
-- graph [baseline; judge 1 (provisional)]: Based on the provided report excerpts, the Board held 7 (seven) meetings during FY24 [Tata Motors Limited, p. 144].
-- baseline [baseline; judge 1 (provisional)]: Based on the provided report excerpts, the Board held 7 (seven) meetings during FY24 [Tata Motors Limited, p. 144].
+- graph [baseline; grade 1 (judge 1)]: Based on the provided report excerpts, the Board held 7 (seven) meetings during FY24 [Tata Motors Limited, p. 144].
+- baseline [baseline; grade 1 (judge 1)]: Based on the provided report excerpts, the Board held 7 (seven) meetings during FY24 [Tata Motors Limited, p. 144].
 
 ### t075 (text_only): What was Tata Motors' consolidated revenue from operations in FY24?
 
 - Gold: ₹4,37,927.77 crore
-- graph [baseline; judge 1 (provisional)]: In FY24, Tata Motors' total consolidated revenue from operations including finance revenue increased by 26.6% to ₹4,37,928 crores (from ₹3,45,967 crores in FY23) [Tata Motors Limited, p.218, p.216].
-- baseline [baseline; judge 1 (provisional)]: In FY24, Tata Motors' total consolidated revenue from operations including finance revenue increased by 26.6% to ₹4,37,928 crores (from ₹3,45,967 crores in FY23) [Tata Motors Limited, p.218, p.216].
+- graph [baseline; grade 1 (judge 1)]: In FY24, Tata Motors' total consolidated revenue from operations including finance revenue increased by 26.6% to ₹4,37,928 crores (from ₹3,45,967 crores in FY23) [Tata Motors Limited, p.218, p.216].
+- baseline [baseline; grade 1 (judge 1)]: In FY24, Tata Motors' total consolidated revenue from operations including finance revenue increased by 26.6% to ₹4,37,928 crores (from ₹3,45,967 crores in FY23) [Tata Motors Limited, p.218, p.216].
 
 ### t076 (text_only): How much did Tata Motors spend on CSR in FY24, and was it required to?
 
 - Gold: ₹21.59 crore; not required (CSR obligation nil because of losses in preceding years)
-- graph [baseline; judge 1 (provisional)]: In FY24, Tata Motors spent ₹21.59 crore on Corporate Social Responsibility (CSR) [Tata Motors Limited, p. 446]. Regarding the requirement to spend, the report states that the amount required to be spent by the Company during the year was "-" (not applicable or nil), and the reason for any shortfall is marked as "NA" [Tata Motors Limited, p. 446, p. 153].
-- baseline [baseline; judge 1 (provisional)]: In FY24, Tata Motors spent ₹21.59 crore on Corporate Social Responsibility (CSR) [Tata Motors Limited, p. 446]. Regarding the requirement to spend, the report states that the amount required to be spent by the Company during the year was "-" (not applicable or nil), and the reason for any shortfall is marked as "NA" [Tata Motors Limited, p. 446, p. 153].
+- graph [baseline; grade 1 (judge 1)]: In FY24, Tata Motors spent ₹21.59 crore on Corporate Social Responsibility (CSR) [Tata Motors Limited, p. 446]. Regarding the requirement to spend, the report states that the amount required to be spent by the Company during the year was "-" (not applicable or nil), and the reason for any shortfall is marked as "NA" [Tata Motors Limited, p. 446, p. 153].
+- baseline [baseline; grade 1 (judge 1)]: In FY24, Tata Motors spent ₹21.59 crore on Corporate Social Responsibility (CSR) [Tata Motors Limited, p. 446]. Regarding the requirement to spend, the report states that the amount required to be spent by the Company during the year was "-" (not applicable or nil), and the reason for any shortfall is marked as "NA" [Tata Motors Limited, p. 446, p. 153].
 
 ### t077 (text_only): Who are Tata Steel's cost auditors?
 
 - Gold: Shome & Banerjee
-- graph [baseline; judge 1 (provisional)]: Tata Steel's cost auditors are Messrs Shome & Banerjee, Cost Accountants [Tata Steel Limited, pp. 557].
-- baseline [baseline; judge 1 (provisional)]: Tata Steel's cost auditors are Messrs Shome & Banerjee, Cost Accountants [Tata Steel Limited, pp. 557].
+- graph [baseline; grade 1 (judge 1)]: Tata Steel's cost auditors are Messrs Shome & Banerjee, Cost Accountants [Tata Steel Limited, pp. 557].
+- baseline [baseline; grade 1 (judge 1)]: Tata Steel's cost auditors are Messrs Shome & Banerjee, Cost Accountants [Tata Steel Limited, pp. 557].
 
 ### t078 (text_only): What was Tata Steel's standalone revenue from operations in FY2023-24?
 
 - Gold: ₹1,40,987.43 crore
-- graph [baseline; judge 0.5 (provisional)]: Tata Steel's standalone revenue from operations in FY2023-24 was ₹140,987 crore [Tata Steel Limited, pp. 211-212].
-- baseline [baseline; judge 0.5 (provisional)]: Tata Steel's standalone revenue from operations in FY2023-24 was ₹140,987 crore [Tata Steel Limited, pp. 211-212].
+- graph [baseline; grade 1 (judge 0.5)]: Tata Steel's standalone revenue from operations in FY2023-24 was ₹140,987 crore [Tata Steel Limited, pp. 211-212].
+- baseline [baseline; grade 1 (judge 0.5)]: Tata Steel's standalone revenue from operations in FY2023-24 was ₹140,987 crore [Tata Steel Limited, pp. 211-212].
 
 ### t079 (text_only): What is Tata Steel's annual crude steel production capacity?
 
 - Gold: 35 MTPA
-- graph [baseline; judge 1 (provisional)]: Tata Steel's consolidated crude steel production capacity is 35 MTPA [Tata Steel Limited, pp. 39-40, 3-6].
-- baseline [baseline; judge 1 (provisional)]: Tata Steel's consolidated crude steel production capacity is 35 MTPA [Tata Steel Limited, pp. 39-40, 3-6].
+- graph [baseline; grade 1 (judge 1)]: Tata Steel's consolidated crude steel production capacity is 35 MTPA [Tata Steel Limited, pp. 39-40, 3-6].
+- baseline [baseline; grade 1 (judge 1)]: Tata Steel's consolidated crude steel production capacity is 35 MTPA [Tata Steel Limited, pp. 39-40, 3-6].
 
 ### t080 (text_only): What was Tata Consumer Products' consolidated revenue from operations in FY2024?
 
 - Gold: ₹15,206 crore
-- graph [baseline; judge 1 (provisional)]: Based on the provided report excerpts, Tata Consumer Products' consolidated revenue for FY 2023-24 was INR 15,206 Crores [Tata Consumer Products Limited, pp. 9-13].
-- baseline [baseline; judge 1 (provisional)]: Based on the provided report excerpts, Tata Consumer Products' consolidated revenue for FY 2023-24 was INR 15,206 Crores [Tata Consumer Products Limited, pp. 9-13].
+- graph [baseline; grade 1 (judge 1)]: Based on the provided report excerpts, Tata Consumer Products' consolidated revenue for FY 2023-24 was INR 15,206 Crores [Tata Consumer Products Limited, pp. 9-13].
+- baseline [baseline; grade 1 (judge 1)]: Based on the provided report excerpts, Tata Consumer Products' consolidated revenue for FY 2023-24 was INR 15,206 Crores [Tata Consumer Products Limited, pp. 9-13].
 
 ### t081 (text_only): How many times did Tata Consumer Products' board meet in FY2024?
 
 - Gold: 7
-- graph [baseline; judge 0 (provisional)]: Based on the provided excerpts, the exact number of Board meetings held during FY 2023-24 is not explicitly stated as a single total, though individual director attendance records show that various directors attended up to 7 meetings during the year [Tata Consumer Products Limited, pp. 288-289].
-- baseline [baseline; judge 0 (provisional)]: Based on the provided excerpts, the exact number of Board meetings held during FY 2023-24 is not explicitly stated as a single total, though individual director attendance records show that various directors attended up to 7 meetings during the year [Tata Consumer Products Limited, pp. 288-289].
+- graph [baseline; grade 0 (judge 0)]: Based on the provided excerpts, the exact number of Board meetings held during FY 2023-24 is not explicitly stated as a single total, though individual director attendance records show that various directors attended up to 7 meetings during the year [Tata Consumer Products Limited, pp. 288-289].
+- baseline [baseline; grade 0 (judge 0)]: Based on the provided excerpts, the exact number of Board meetings held during FY 2023-24 is not explicitly stated as a single total, though individual director attendance records show that various directors attended up to 7 meetings during the year [Tata Consumer Products Limited, pp. 288-289].
 
 ### t082 (text_only): What was Tata Consumer Products' CSR obligation for FY2024?
 
 - Gold: ₹20.03 crore
-- graph [baseline; judge 1 (provisional)]: Tata Consumer Products' CSR obligation for FY 2024 was Rs 20.03 Crores [Tata Consumer Products Limited, p. 234, 417].
-- baseline [baseline; judge 1 (provisional)]: Tata Consumer Products' CSR obligation for FY 2024 was Rs 20.03 Crores [Tata Consumer Products Limited, p. 234, 417].
+- graph [baseline; grade 1 (judge 1)]: Tata Consumer Products' CSR obligation for FY 2024 was Rs 20.03 Crores [Tata Consumer Products Limited, p. 234, 417].
+- baseline [baseline; grade 1 (judge 1)]: Tata Consumer Products' CSR obligation for FY 2024 was Rs 20.03 Crores [Tata Consumer Products Limited, p. 234, 417].
 
 ### t083 (text_only): What share of Infosys's India operations ran on renewable energy in fiscal 2024?
 
 - Gold: 67.52%
-- graph [baseline; judge 1 (provisional)]: In fiscal 2024, 67.52% of Infosys's electricity in India operations was met through renewables [Infosys Limited, p. 65; Infosys Limited, p. 26].
-- baseline [baseline; judge 1 (provisional)]: In fiscal 2024, 67.52% of Infosys's electricity in India operations was met through renewables [Infosys Limited, p. 65; Infosys Limited, p. 26].
+- graph [baseline; grade 1 (judge 1)]: In fiscal 2024, 67.52% of Infosys's electricity in India operations was met through renewables [Infosys Limited, p. 65; Infosys Limited, p. 26].
+- baseline [baseline; grade 1 (judge 1)]: In fiscal 2024, 67.52% of Infosys's electricity in India operations was met through renewables [Infosys Limited, p. 65; Infosys Limited, p. 26].
 
 ### t084 (text_only): What was Infosys's consolidated revenue from operations for fiscal 2024?
 
 - Gold: ₹1,53,670 crore
-- graph [baseline; judge 1 (provisional)]: Infosys's consolidated revenue from operations for fiscal 2024 was ₹153,670 crore [Infosys Limited, p. 339].
-- baseline [baseline; judge 1 (provisional)]: Infosys's consolidated revenue from operations for fiscal 2024 was ₹153,670 crore [Infosys Limited, p. 339].
+- graph [baseline; grade 1 (judge 1)]: Infosys's consolidated revenue from operations for fiscal 2024 was ₹153,670 crore [Infosys Limited, p. 339].
+- baseline [baseline; grade 1 (judge 1)]: Infosys's consolidated revenue from operations for fiscal 2024 was ₹153,670 crore [Infosys Limited, p. 339].
 
 ### t085 (text_only): How much did Infosys spend on CSR globally in fiscal 2024?
 
 - Gold: ₹577 crore
-- graph [baseline; judge 0 (provisional)]: Based on the provided reports, Infosys spent ₹450.76 crore on CSR activities in India during fiscal 2024 [Infosys Limited, p. 94]. Additionally, Infosys expanded its CSR footprint globally, spending $4,698,267 (equivalent to ₹39 crore) towards CSR in Australia, Europe, and through Infosys Foundation USA [Infosys Limited, p. 90].
-- baseline [baseline; judge 0 (provisional)]: Based on the provided reports, Infosys spent ₹450.76 crore on CSR activities in India during fiscal 2024 [Infosys Limited, p. 94]. Additionally, Infosys expanded its CSR footprint globally, spending $4,698,267 (equivalent to ₹39 crore) towards CSR in Australia, Europe, and through Infosys Foundation USA [Infosys Limited, p. 90].
+- graph [baseline; grade 0 (judge 0)]: Based on the provided reports, Infosys spent ₹450.76 crore on CSR activities in India during fiscal 2024 [Infosys Limited, p. 94]. Additionally, Infosys expanded its CSR footprint globally, spending $4,698,267 (equivalent to ₹39 crore) towards CSR in Australia, Europe, and through Infosys Foundation USA [Infosys Limited, p. 90].
+- baseline [baseline; grade 0 (judge 0)]: Based on the provided reports, Infosys spent ₹450.76 crore on CSR activities in India during fiscal 2024 [Infosys Limited, p. 94]. Additionally, Infosys expanded its CSR footprint globally, spending $4,698,267 (equivalent to ₹39 crore) towards CSR in Australia, Europe, and through Infosys Foundation USA [Infosys Limited, p. 90].
 
 ### t086 (none_or_unanswerable): Which Infosys directors also sit on the board of one of the four Tata pilot companies?
 
