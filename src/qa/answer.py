@@ -53,6 +53,7 @@ class QAResult:
     entities: list[EntityMatch] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     rows: list[dict] = field(default_factory=list)
+    records: list = field(default_factory=list, repr=False)  # the raw Neo4j records, for the demo's graph view
 
 
 # ---------------------------------------------------------------- reading results
@@ -185,7 +186,7 @@ def answer_question(question: str, client: LLMClient, driver,
     prompt = (f"Question: {question}\n\nQuery results ({len(rows)} rows):\n"
               f"{json.dumps(rows[:MAX_ROWS_FOR_ANSWER], ensure_ascii=False, default=str)}\n\nAnswer:")
     answer = client.generate_text(prompt, system=ANSWER_SYSTEM, temperature=0.0, step="qa.answer").strip()
-    return QAResult(question, answer, "graph", cypher, paths, sources, entities, notes, rows)
+    return QAResult(question, answer, "graph", cypher, paths, sources, entities, notes, rows, list(records))
 
 
 def _fallback(question: str, baseline, notes: list[str], entities, cypher) -> QAResult:

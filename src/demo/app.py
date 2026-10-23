@@ -23,6 +23,8 @@ from neo4j import GraphDatabase  # noqa: E402
 
 from src.cli import _baseline_answerer  # noqa: E402
 from src.config import get_settings  # noqa: E402
+from src.demo.support import (answer_nodes, cited_sources, graph_data, render_html,  # noqa: E402
+                              supporting_sources)
 from src.llm.client import LLMError, build_client  # noqa: E402
 from src.llm.rate_limiter import DailyLimitReached  # noqa: E402
 from src.qa.answer import QAResult, answer_question  # noqa: E402
@@ -66,8 +68,8 @@ def _source_lines(sources: list[str]) -> list[str]:
     """'TATASTEEL.pdf pp.211-212' -> 'TATASTEEL.pdf, pages 211-212'."""
     lines = []
     for s in sources:
-        m = re.match(r"(\S+\.pdf) pp?\.(\S+)", s)
-        lines.append(f"{m.group(1)}, page{'s' if '-' in m.group(2) else ''} {m.group(2)}" if m else s)
+        m = re.match(r"(\S+\.pdf) pp?\.(\S+)(.*)", s)
+        lines.append(f"{m.group(1)}, page{'s' if '-' in m.group(2) else ''} {m.group(2)}{m.group(3)}" if m else s)
     return lines
 
 
@@ -75,11 +77,32 @@ def _show(title: str, result: QAResult) -> None:
     st.subheader(title)
     st.markdown(result.answer)
     st.markdown(f"**Route:** {ROUTE_LABELS.get(result.route, result.route)}")
-    if result.sources:
+    data = answer_ids = None
+    if result.route == "graph" and result.records:
+        data = graph_data(result.records)
+        entity_uids = {e.node.uid for e in result.entities if e.status == "resolved" and e.node}
+        answer_ids = answer_nodes(data, result.answer, entity_uids)
+        sources = supporting_sources(data, answer_ids)
+    elif result.route == "baseline":
+        sources = cited_sources(result.answer, result.sources)
+    else:
+        sources = result.sources
+    if sources:
         st.markdown("**Sources** (PDF page numbers):")
-        st.markdown("\n".join(f"- {line}" for line in _source_lines(result.sources)))
+        st.markdown("\n".join(f"- {line}" for line in _source_lines(sources)))
     else:
         st.markdown("**Sources:** none")
+    if data is not None and data.paths:
+        question_ids = {n.id for n in data.nodes.values()
+                        if n.uid in {e.node.uid for e in result.entities if e.node}}
+        st.markdown("**Graph paths** (gold: answer; blue: named in the question; hover for details)")
+        st.iframe(render_html(data, answer_ids, question_ids), height=480)
+        if data.truncated:
+            st.caption(f"Showing {len(data.paths)} paths; {data.truncated} more not drawn.")
+    if result.cypher:
+        label = "Generated Cypher" if result.route == "graph" else "Generated Cypher (not used: fell back to the baseline)"
+        with st.expander(label):
+            st.code(result.cypher, language="cypher")
 
 
 def main() -> None:

@@ -103,9 +103,18 @@ python -m src.cli --help
 | `eval-score` | 7 | Score the answers (`src/eval/score.py`, `src/eval/scoring_key.jsonl`), export the judge grades and item extractions for hand checking, write `reports/eval_results.md` |
 
 Demo page (Phase 8): `streamlit run src/demo/app.py` (needs Neo4j running), then open
-http://localhost:8501. It has a question box, a Graph / Baseline / Both toggle, five example
-questions, and each answer with its route and sources (doc + page). It reuses the `ask` pipeline
-and is read-only.
+http://localhost:8501. It has a question box, a Graph / Baseline / Both toggle and five example
+questions. Each answer shows its route and sources (doc + page). It reuses the `ask` pipeline
+and is read-only. Graph-route answers also show:
+- the returned paths as an interactive graph (pyvis), with the answer nodes highlighted;
+- the generated Cypher in an expandable box.
+
+Sources list only what supports the answer:
+- Graph: facts on the paths that reach an answer node, citing the company's own report (not
+  the other reports that repeat the fact).
+- Baseline: the pages the answer cites, checked against the retrieved excerpts.
+
+Logic: `src/demo/support.py`.
 
 ## Project layout
 
