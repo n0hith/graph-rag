@@ -23,11 +23,6 @@ def main(log_level: str = typer.Option(None, help="Override LOG_LEVEL (DEBUG, IN
     setup_logging(log_level or get_settings().log_level)
 
 
-def _not_built(phase: int) -> None:
-    typer.echo(f"Not built yet: this command arrives in Phase {phase}.")
-    raise typer.Exit(code=1)
-
-
 # ---------------------------------------------------------------- pipeline steps
 
 
@@ -604,8 +599,29 @@ def dev_run(only: list[str] = typer.Option(None, "--only", help="Question id(s) 
 
 @app.command("eval")
 def run_eval() -> None:
-    """Run the evaluation set against both systems."""
-    _not_built(7)
+    """Phase 7: answer every verified test question with both systems once (resumable; answers are
+    written to data/eval/answers.jsonl and not printed)."""
+    from neo4j import GraphDatabase
+
+    from src.eval.run_eval import SYSTEMS, load_questions, run
+    from src.eval.summary import _git_head
+
+    settings = get_settings()
+    questions = load_questions(Path(__file__).parent / "eval" / "questions.jsonl")
+    answers_path = settings.data_dir / "eval" / "answers.jsonl"
+    client = build_client(settings, purpose="qa")
+    client.fallback_model = None  # every answer from GEMINI_QA_MODEL; stop on quota instead of switching
+    baseline = _baseline_answerer(settings, client)
+    auth = (settings.neo4j_user, settings.neo4j_password.get_secret_value())
+    with GraphDatabase.driver(settings.neo4j_uri, auth=auth, notifications_min_severity="WARNING") as driver:
+        driver.verify_connectivity()
+        counts = run(questions, answers_path, client, driver, baseline, _git_head(), typer.echo)
+    total = len(questions) * len(SYSTEMS)
+    finished = counts["already_done"] + counts["answered"]
+    typer.secho(f"{finished} of {total} answers done ({counts['answered']} new this run, "
+                f"{counts['infra_failed']} infrastructure failures to retry)"
+                + (". Stopped: daily quota used up." if counts["stopped_on_quota"] else "."), bold=True)
+    typer.echo(client.tracker.summary())
 
 
 # ---------------------------------------------------------------- setup checks

@@ -25,3 +25,4 @@ Thumbs.db
 
 # Verification exports (local only)
 exports/
+data/eval/*
