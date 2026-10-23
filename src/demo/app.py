@@ -23,7 +23,7 @@ from neo4j import GraphDatabase  # noqa: E402
 
 from src.cli import _baseline_answerer  # noqa: E402
 from src.config import get_settings  # noqa: E402
-from src.demo.support import (answer_nodes, cited_sources, graph_data, render_html,  # noqa: E402
+from src.demo.support import (COLOURS, answer_nodes, cited_sources, graph_data, render_html,  # noqa: E402
                               supporting_sources)
 from src.llm.client import LLMError, build_client  # noqa: E402
 from src.llm.rate_limiter import DailyLimitReached  # noqa: E402
@@ -41,6 +41,14 @@ EXAMPLES = [
 MODES = ("Graph", "Baseline", "Both")
 ROUTE_LABELS = {"graph": "graph", "baseline": "baseline (plain RAG over the report text)",
                 "clarify": "clarify (a name matches several entries)"}
+ROUTE_BADGES = {"graph": ("green", ":material/hub:"), "baseline": ("orange", ":material/description:"),
+                "clarify": ("gray", ":material/help:")}
+GRAPH_HEIGHT = 620
+LEGEND = (f'<span style="font-size:0.85em;opacity:0.85">'
+          f'<span style="color:{COLOURS["answer"]}">●</span> answer &nbsp; '
+          f'<span style="color:{COLOURS["question"]}">●</span> from your question &nbsp; '
+          f'<span style="color:{COLOURS["other"]}">●</span> other &nbsp;·&nbsp; hover for details, '
+          f'scroll to zoom, drag to pan</span>')
 
 
 @st.cache_resource
@@ -75,8 +83,9 @@ def _source_lines(sources: list[str]) -> list[str]:
 
 def _show(title: str, result: QAResult) -> None:
     st.subheader(title)
+    colour, icon = ROUTE_BADGES.get(result.route, ("gray", None))
+    st.badge(f"Route: {ROUTE_LABELS.get(result.route, result.route)}", color=colour, icon=icon)
     st.markdown(result.answer)
-    st.markdown(f"**Route:** {ROUTE_LABELS.get(result.route, result.route)}")
     data = answer_ids = None
     if result.route == "graph" and result.records:
         data = graph_data(result.records)
@@ -95,8 +104,9 @@ def _show(title: str, result: QAResult) -> None:
     if data is not None and data.paths:
         question_ids = {n.id for n in data.nodes.values()
                         if n.uid in {e.node.uid for e in result.entities if e.node}}
-        st.markdown("**Graph paths** (gold: answer; blue: named in the question; hover for details)")
-        st.iframe(render_html(data, answer_ids, question_ids), height=480)
+        st.markdown("**Graph paths**")
+        st.markdown(LEGEND, unsafe_allow_html=True)
+        st.iframe(render_html(data, answer_ids, question_ids), width="stretch", height=GRAPH_HEIGHT)
         if data.truncated:
             st.caption(f"Showing {len(data.paths)} paths; {data.truncated} more not drawn.")
     if result.cypher:
@@ -126,7 +136,7 @@ def main() -> None:
     asked = st.button("Ask", type="primary") or clicked
     if not (asked and question.strip()):
         return
-    with st.spinner("Answering..."):
+    with st.spinner("Answering...", show_time=True):
         try:
             results = _ask(question.strip(), mode)
         except DailyLimitReached as exc:
@@ -137,7 +147,7 @@ def main() -> None:
             return
     cols = st.columns(len(results))
     for col, (title, result) in zip(cols, results.items()):
-        with col:
+        with col, st.container(border=True):
             _show(title, result)
 
 

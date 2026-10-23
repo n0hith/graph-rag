@@ -12,6 +12,7 @@ that support the answer (not every page the query or the retriever touched).
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 
@@ -155,7 +156,44 @@ def cited_sources(answer: str, retrieved: list[str]) -> list[str]:
 
 # ---------------------------------------------------------------- view
 
-COLOURS = {"answer": "#f2b134", "question": "#4c8bf5", "other": "#c4c9d4"}
+COLOURS = {"answer": "#f2b134", "question": "#4c8bf5", "other": "#8b93a7"}
+CANVAS = "#161a23"  # a shade above Streamlit's dark background, so the view reads as a panel
+LABEL, EDGE, EDGE_LABEL = "#e6e8ee", "#5c6578", "#8b93a7"
+
+_VIEW_OPTIONS = {
+    "nodes": {"shape": "dot", "size": 9, "borderWidth": 1,
+              "font": {"size": 12, "color": LABEL, "strokeWidth": 3, "strokeColor": CANVAS}},
+    "edges": {"color": {"color": EDGE, "highlight": "#c4c9d4", "hover": "#c4c9d4"}, "width": 1,
+              "arrows": {"to": {"enabled": True, "scaleFactor": 0.5}}, "smooth": {"type": "continuous"},
+              "font": {"size": 8, "color": EDGE_LABEL, "strokeWidth": 0, "align": "top"}},
+    # Long springs and overlap avoidance keep the labels apart; the layout settles, then freezes.
+    "layout": {"randomSeed": 3},
+    "physics": {"solver": "forceAtlas2Based",
+                "forceAtlas2Based": {"gravitationalConstant": -80, "springLength": 180, "avoidOverlap": 1},
+                "stabilization": {"iterations": 300, "fit": True}},
+    "interaction": {"hover": True, "navigationButtons": False, "keyboard": False, "tooltipDelay": 150},
+}
+
+# Fill the iframe with no margins (no inner scrollbar), dark tooltips, and the empty heading pyvis adds dropped.
+_VIEW_CSS = f"""<style>
+html, body {{ margin: 0; padding: 0; height: 100%; overflow: hidden; background: {CANVAS}; }}
+.card, .card-body {{ border: 0 !important; padding: 0 !important; margin: 0 !important; }}
+#mynetwork {{ width: 100% !important; height: 100vh !important; border: 0 !important; float: none !important; }}
+div.vis-tooltip {{ background: #262b37; color: {LABEL}; border: 1px solid #3a4152; border-radius: 4px;
+  font: 12px/1.4 sans-serif; white-space: pre-line; }}
+</style>"""
+
+# Once the layout settles: stop the physics (nodes stay where they landed) and zoom to fit them, with a
+# margin for the labels (fit only counts the nodes). The layout can finish before this runs, so it
+# also checks after a short wait.
+_FIT_JS = """<script>
+function fitView() { network.fit({animation: false}); network.moveTo({scale: network.getScale() * 0.88}); }
+function settle() { network.setOptions({physics: false}); fitView(); }
+network.once("stabilizationIterationsDone", settle);
+network.once("stabilized", settle);
+setTimeout(settle, 2500);
+window.addEventListener("resize", fitView);
+</script>"""
 
 
 def _safe(text) -> str:
@@ -163,23 +201,28 @@ def _safe(text) -> str:
     return str(text).replace("<", "‹").replace(">", "›")
 
 
-def render_html(data: GraphData, answer_ids: set[str], question_ids: set[str], height: int = 460) -> str:
-    """An interactive view (pyvis / vis-network, inlined so it works offline)."""
+def render_html(data: GraphData, answer_ids: set[str], question_ids: set[str]) -> str:
+    """An interactive view (pyvis / vis-network, inlined so it works offline), sized to fill its iframe."""
     from pyvis.network import Network
 
-    net = Network(height=f"{height}px", width="100%", directed=True, cdn_resources="in_line", bgcolor="#ffffff")
+    net = Network(height="100vh", width="100%", directed=True, cdn_resources="in_line", bgcolor=CANVAS,
+                  font_color=LABEL)
     for n in data.nodes.values():
         kind = "answer" if n.id in answer_ids else "question" if n.id in question_ids else "other"
         title = "\n".join(x for x in (f"{n.label}: {n.name}", n.detail) if x)
-        net.add_node(n.id, label=_safe(n.name), title=_safe(title), color=COLOURS[kind], size=26 if kind == "answer" else 16,
-                     borderWidth=3 if kind == "answer" else 1, font={"size": 14 if kind == "answer" else 12})
+        colour = COLOURS[kind]
+        net.add_node(n.id, label=_safe(n.name), title=_safe(title), size=9,
+                     color={"background": colour, "border": "#ffffff" if kind == "answer" else colour,
+                            "highlight": {"background": colour, "border": "#ffffff"},
+                            "hover": {"background": colour, "border": "#ffffff"}},
+                     borderWidth=2 if kind == "answer" else 1)
     for e in data.edges.values():
         lines = [e.type, *(f"{k}: {v}" for k, v in e.facts.items()),
                  "sources: " + ", ".join(f"{doc} p.{page}" for _, doc, page in e.evidence)]
-        net.add_edge(e.start, e.end, label=_safe(e.type), title=_safe("\n".join(lines)), arrows="to",
-                     font={"size": 10})
-    net.set_options('{"physics": {"stabilization": {"iterations": 200}}, '
-                    '"interaction": {"hover": true, "navigationButtons": true}}')
+        net.add_edge(e.start, e.end, label=_safe(e.type), title=_safe("\n".join(lines)))
+    net.set_options(json.dumps(_VIEW_OPTIONS))
     html = net.generate_html(notebook=False)
     # pyvis's template also pulls Bootstrap from a CDN for menus this view doesn't use.
-    return re.sub(r"<(link|script)\s[^>]*bootstrap[^>]*>(\s*</script>)?", "", html)
+    html = re.sub(r"<(link|script)\s[^>]*bootstrap[^>]*>(\s*</script>)?", "", html)
+    html = re.sub(r"<center>\s*<h1>\s*</h1>\s*</center>", "", html)
+    return html.replace("</head>", _VIEW_CSS + "</head>", 1).replace("</body>", _FIT_JS + "</body>", 1)
