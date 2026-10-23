@@ -1,6 +1,6 @@
 # Phase 7 evaluation results
 
-Answers produced at code commit(s) `fcc5dd9` with `gemini-3.5-flash-lite` (fallback model off), temperature 0, one run per system; scored at commit `1e25cc0` by `eval-score` (src/eval/score.py, src/eval/scoring_key.jsonl). 95 verified questions x 2 systems.
+Answers produced at code commit(s) `fcc5dd9` with `gemini-3.5-flash-lite` (fallback model off), temperature 0, one run per system; scored at commit `2977d72` by `eval-score` (src/eval/score.py, src/eval/scoring_key.jsonl). 95 verified questions x 2 systems.
 
 ## Results by category (automatic scoring)
 
@@ -45,8 +45,8 @@ Judge agreement with the user's hand check: 28/30 = 93%.
 
 Grades the user changed:
 
-- t078 (baseline, hand-check row 7): judge 0.5 -> user 1; same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'
-- t078 (graph, hand-check row 21): judge 0.5 -> user 1; same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'
+- t078 (baseline, hand-check row 7): judge 0.5 -> user 1; ₹140,987 crore is the same value as the gold ₹1,40,987.43 crore, stated to the nearest crore; graded 1 under the numbers rule that formatting and units can differ
+- t078 (graph, hand-check row 21): judge 0.5 -> user 1; ₹140,987 crore is the same value as the gold ₹1,40,987.43 crore, stated to the nearest crore; graded 1 under the numbers rule that formatting and units can differ
 
 ## Failure list
 

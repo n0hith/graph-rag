@@ -177,7 +177,10 @@ in brackets):
 
 - Neither system got any of the four aggregation counts right; the graph fell back to the
   baseline on all four.
-- Text-only: the LLM judge agreed with the user's hand check on 28 of 30 grades (93%).
+- Text-only: the LLM judge agreed with the user's hand check on 28 of 30 grades (93%). The two
+  changes are t078 for both systems, from 0.5 to 1. ₹140,987 crore is the same value as the
+  gold ₹1,40,987.43 crore, stated to the nearest crore, so it was graded under the numbers rule
+  that formatting and units can differ.
 
 ## Known limitations
 

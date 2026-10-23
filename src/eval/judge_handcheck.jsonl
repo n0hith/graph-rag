@@ -4,7 +4,7 @@
 {"row": 4, "id": "t080", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 5, "id": "t073", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 6, "id": "t077", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
-{"row": 7, "id": "t078", "system": "baseline", "judge_grade": "0.5", "user_grade": "1", "note": "same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'"}
+{"row": 7, "id": "t078", "system": "baseline", "judge_grade": "0.5", "user_grade": "1", "note": "₹140,987 crore is the same value as the gold ₹1,40,987.43 crore, stated to the nearest crore; graded 1 under the numbers rule that formatting and units can differ"}
 {"row": 8, "id": "t071", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 9, "id": "t072", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 10, "id": "t082", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
@@ -18,7 +18,7 @@
 {"row": 18, "id": "t080", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 19, "id": "t074", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 20, "id": "t085", "system": "graph", "judge_grade": "0", "user_grade": "0", "note": ""}
-{"row": 21, "id": "t078", "system": "graph", "judge_grade": "0.5", "user_grade": "1", "note": "same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'"}
+{"row": 21, "id": "t078", "system": "graph", "judge_grade": "0.5", "user_grade": "1", "note": "₹140,987 crore is the same value as the gold ₹1,40,987.43 crore, stated to the nearest crore; graded 1 under the numbers rule that formatting and units can differ"}
 {"row": 22, "id": "t079", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 23, "id": "t079", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
 {"row": 24, "id": "t075", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
