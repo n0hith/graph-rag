@@ -716,13 +716,29 @@ def eval_score() -> None:
                                     questions, answers, grades)
     n_extract = write_extraction_check(exports / "extraction_check.csv", questions, answers,
                                        {k: v for k, v in extractions.items() if k in scores}, scores)
+    # The user's hand check of every judge grade; the user's grade counts where they disagree.
+    hand_path = Path(__file__).parent / "eval" / "judge_handcheck.jsonl"
+    hand = [_json.loads(line) for line in hand_path.read_text(encoding="utf-8").splitlines() if line] \
+        if hand_path.exists() else None
+    if hand and {(h["id"], h["system"]) for h in hand} != set(grades):
+        typer.secho("judge_handcheck.jsonl doesn't cover exactly the judge's grades", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    text_failures = [{"id": h["id"], "system": h["system"], "category": "text_only",
+                      "route": answers[(h["id"], h["system"])]["route"], "score": float(h["user_grade"]),
+                      "reason": provisional_reason(questions[h["id"]], {"type": "number"},
+                                                   answers[(h["id"], h["system"])], None),
+                      "what": f"grade {h['user_grade']}: {grades[(h['id'], h['system'])]['reason']}"}
+                     for h in hand or [] if h["user_grade"] != "1"]
+    extraction_note = ("Item extraction was spot-checked by the user (24 of the 159 extractions in "
+                       "`exports/extraction_check.csv`): every one listed exactly what the answer claims, with "
+                       "values attached and \"none\" marked correctly; no extraction errors found.") if hand else ""
     commits = sorted({a["commit"] for a in answers.values()})
     header = [f"Answers produced at code commit(s) {', '.join(f'`{c}`' for c in commits)} with "
               f"`{client.default_model}` (fallback model off), temperature 0, one run per system; scored at "
               f"commit `{_git_head()}` by `eval-score` (src/eval/score.py, src/eval/scoring_key.jsonl). "
               f"{len(questions)} verified questions x {len(SYSTEMS)} systems."]
     path = write_report(settings.data_dir.parent / "reports" / "eval_results.md", questions, answers, scored,
-                        list(grades.values()), header)
+                        list(grades.values()), header, hand, extraction_note, text_failures)
     typer.secho(f"Wrote {path}; hand-check files: {n_judge} judge grades in exports/judge_handcheck.csv, "
                 f"{n_extract} extractions in exports/extraction_check.csv", bold=True)
     typer.echo(client.tracker.summary())

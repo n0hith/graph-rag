@@ -1,0 +1,30 @@
+{"row": 1, "id": "t084", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 2, "id": "t073", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 3, "id": "t075", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 4, "id": "t080", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 5, "id": "t073", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 6, "id": "t077", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 7, "id": "t078", "system": "baseline", "judge_grade": "0.5", "user_grade": "1", "note": "same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'"}
+{"row": 8, "id": "t071", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 9, "id": "t072", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 10, "id": "t082", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 11, "id": "t071", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 12, "id": "t085", "system": "baseline", "judge_grade": "0", "user_grade": "0", "note": ""}
+{"row": 13, "id": "t074", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 14, "id": "t076", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 15, "id": "t082", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 16, "id": "t083", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 17, "id": "t077", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 18, "id": "t080", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 19, "id": "t074", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 20, "id": "t085", "system": "graph", "judge_grade": "0", "user_grade": "0", "note": ""}
+{"row": 21, "id": "t078", "system": "graph", "judge_grade": "0.5", "user_grade": "1", "note": "same number rounded to the nearest crore (gold 1,40,987.43 crore); user's call that whole-crore rounding of a figure stated in crore is acceptable for text-only, departing from the numbers rule's 'a rounded value is wrong'"}
+{"row": 22, "id": "t079", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 23, "id": "t079", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 24, "id": "t075", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 25, "id": "t084", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 26, "id": "t076", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 27, "id": "t081", "system": "baseline", "judge_grade": "0", "user_grade": "0", "note": ""}
+{"row": 28, "id": "t081", "system": "graph", "judge_grade": "0", "user_grade": "0", "note": ""}
+{"row": 29, "id": "t072", "system": "graph", "judge_grade": "1", "user_grade": "1", "note": ""}
+{"row": 30, "id": "t083", "system": "baseline", "judge_grade": "1", "user_grade": "1", "note": ""}

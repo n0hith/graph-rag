@@ -78,27 +78,59 @@ def text_only_table(grades: list[dict]) -> list[str]:
     return lines
 
 
+def handchecked_table(hand: list[dict]) -> list[str]:
+    """Final text-only grades (the user's where they differ from the judge's), next to the judge's."""
+    lines = ["| System | Questions | Mean grade (final) | Grade 1 | Grade 0.5 | Grade 0 | Mean judge grade | Winner |",
+             "|---|---|---|---|---|---|---|---|"]
+    means = {s: _mean([float(h["user_grade"]) for h in hand if h["system"] == s]) for s in SYSTEMS}
+    g, b = means["graph"], means["baseline"]
+    winner = "tie" if abs(g - b) < 1e-9 else ("graph" if g > b else "baseline")
+    for s in SYSTEMS:
+        us = [float(h["user_grade"]) for h in hand if h["system"] == s]
+        js = [float(h["judge_grade"]) for h in hand if h["system"] == s]
+        lines.append(f"| {s} | {len(us)} | {_fmt(_mean(us))} | {us.count(1.0)} | {us.count(0.5)} | {us.count(0.0)} | "
+                     f"{_fmt(_mean(js))} | {winner} |")
+    agree = sum(h["user_grade"] == h["judge_grade"] for h in hand)
+    lines += ["", f"Judge agreement with the user's hand check: {agree}/{len(hand)} = {_pct(agree / len(hand))}."]
+    changed = [h for h in hand if h["user_grade"] != h["judge_grade"]]
+    if changed:
+        lines += ["", "Grades the user changed:", ""]
+        lines += [f"- {h['id']} ({h['system']}, hand-check row {h['row']}): judge {h['judge_grade']} -> user "
+                  f"{h['user_grade']}; {h['note']}" for h in changed]
+    return lines
+
+
 def _cell(text: str, limit: int | None = None) -> str:
     text = " ".join(str(text).split()).replace("|", "\\|")
     return text if limit is None or len(text) <= limit else text[: limit - 3] + "..."
 
 
 def write_report(path: Path, questions: dict, answers: dict, scored: list[dict], grades: list[dict],
-                 header: list[str]) -> Path:
+                 header: list[str], hand: list[dict] | None = None, extraction_note: str = "",
+                 text_failures: list[dict] | None = None) -> Path:
+    if hand:
+        text_only = ["## Text-only (LLM judge, hand-checked)", "",
+                     "The judge graded all 30 answers; the user hand-checked every grade, and the user's grade counts "
+                     "where they disagree (src/eval/judge_handcheck.jsonl).", "", *handchecked_table(hand)]
+    else:
+        text_only = ["## Text-only (LLM judge, provisional)", "",
+                     "The judge's grades, before the user's hand check of all of them; the user's grade replaces the "
+                     "judge's where they disagree, and the agreement rate is added then. Hand-check file: "
+                     "`exports/judge_handcheck.csv`.", "", *text_only_table(grades)]
     lines = ["# Phase 7 evaluation results", "", *header, "",
              "## Results by category (automatic scoring)", "",
              "Per question: F1 for lists, 1 or 0 for numbers and none/unanswerable. Fully correct: F1 = 1 or "
              "right. Winner: higher mean score.", "", *summary_table(scored), "",
+             *([extraction_note, ""] if extraction_note else []),
              "### By answer type", "", *by_type_table(scored), "",
-             "## Text-only (LLM judge, provisional)", "",
-             "The judge's grades, before the user's hand check of all of them; the user's grade replaces the judge's "
-             "where they disagree, and the agreement rate is added then. Hand-check file: "
-             "`exports/judge_handcheck.csv`.", "", *text_only_table(grades), "",
+             *text_only, "",
              "## Failure list", "",
-             "Every question a system got less than fully right (text-only excluded until the hand check). Reasons "
-             "come from the fixed set in the scoring rules.", "",
+             "Every question a system got less than fully right" + ("" if hand else
+             " (text-only excluded until the hand check)") + ". Reasons come from the fixed set in the scoring "
+             "rules.", "",
              "| id | category | system | route | score | reason | what was wrong |", "|---|---|---|---|---|---|---|"]
-    for r in sorted((r for r in scored if not r["correct"]), key=lambda r: (r["id"], r["system"])):
+    failures = [r for r in scored if not r["correct"]] + (text_failures or [])
+    for r in sorted(failures, key=lambda r: (r["id"], r["system"])):
         lines.append(f"| {r['id']} | {r['category']} | {r['system']} | {r['route']} | {r['score']:.2f} | "
                      f"{r['reason']} | {_cell(r['what'], 220)} |")
     lines += ["", "## Answers", ""]
@@ -111,7 +143,10 @@ def write_report(path: Path, questions: dict, answers: dict, scored: list[dict],
                 continue
             row = next((r for r in scored if r["id"] == qid and r["system"] == s), None)
             grade = next((g for g in grades if g["id"] == qid and g["system"] == s), None)
-            mark = (f"score {row['score']:.2f}" if row else f"judge {grade['grade']} (provisional)" if grade else "")
+            checked = next((h for h in hand or [] if h["id"] == qid and h["system"] == s), None)
+            mark = (f"score {row['score']:.2f}" if row else
+                    f"grade {checked['user_grade']} (judge {checked['judge_grade']})" if checked else
+                    f"judge {grade['grade']} (provisional)" if grade else "")
             lines.append(f"- {s} [{a['route']}; {mark}]: {_cell(a['answer'])}")
             if a.get("cypher"):
                 lines.append(f"  - Cypher: `{_cell(a['cypher'])}`")
