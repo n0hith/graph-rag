@@ -102,6 +102,11 @@ python -m src.cli --help
 | `eval` | 7 | Answer every verified test question with both systems once (resumable; answers in `data/eval/answers.jsonl`) |
 | `eval-score` | 7 | Score the answers (`src/eval/score.py`, `src/eval/scoring_key.jsonl`), export the judge grades and item extractions for hand checking, write `reports/eval_results.md` |
 
+Demo page (Phase 8): `streamlit run src/demo/app.py` (needs Neo4j running), then open
+http://localhost:8501. It has a question box, a Graph / Baseline / Both toggle, five example
+questions, and each answer with its route and sources (doc + page). It reuses the `ask` pipeline
+and is read-only.
+
 ## Project layout
 
 ```
