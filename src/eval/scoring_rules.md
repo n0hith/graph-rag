@@ -23,9 +23,19 @@ not change after seeing results.
   (F1 = 1, i.e. every gold item found and nothing extra).
 
 **Numbers and counts** (`answer_type: number`)
-- Exact match on the value. Formatting and units may differ: "₹2,40,893 crore", "2,40,893",
-  "240,893 crore" and "Rs 2.40893 lakh crore" are the same; "129" and "one hundred twenty-nine"
-  are the same; "55.39%" and "55.39 percent" are the same. A rounded or approximate value is wrong.
+- A number is correct if it equals the gold value. It may be stated at a different precision
+  (e.g. rounded to the nearest crore) or with different formatting or units: "₹2,40,893 crore",
+  "2,40,893", "240,893 crore" and "Rs 2.40893 lakh crore" are the same; "129" and "one hundred
+  twenty-nine" are the same; "55.39%" and "55.39 percent" are the same. An approximate value
+  ("about ₹1,100 crore") or a different value is wrong.
+- *Note, 2026-10-23 (after the results):* this rule used to end "A rounded or approximate value
+  is wrong". That wording was too strict and contradicted the rule's own "formatting and units
+  may differ" clause; this corrects it. It was applied in the text-only hand check to t078
+  (hand-check rows 7 and 21): "₹140,987 crore" for the gold "₹1,40,987.43 crore", graded 1
+  instead of the judge's 0.5. It does not change the result: both systems gave that answer, and
+  text-only is a tie either way. The automatic scorer (`src/eval/score.py`) was not changed.
+  None of the 64 automatically scored failures gives a value within 1% of a gold value, so no
+  automatic score would change under either wording.
 
 **Dates and short factual text outside `text_only`** (`answer_type: text` in other categories)
 - Split into the key facts the gold states (each date, number, name); scored as a list of those
