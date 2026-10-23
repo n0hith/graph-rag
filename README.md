@@ -260,9 +260,12 @@ the system was tuned on them, so they would overstate its accuracy.
 
 - `src/eval/question_plan.md`: the test-set mix, fixed and committed before any question was
   drafted (15 1hop, 20 2hop, 15 3hop, 20 aggregation, 15 text_only, 10 none/unanswerable).
-- `src/eval/questions.jsonl`: 95 draft questions written from the PDFs (not the graph), each
-  with a proposed gold answer, the PDF pages to check it and `verified: false`. None repeats or
-  rewords a practice question (`src/qa/dev_questions.jsonl`, `src/eval/baseline_notes.md`).
+- `src/eval/questions.jsonl`: 95 questions written from the PDFs (not the graph), each with a
+  gold answer and the PDF pages to check it. None repeats or rewords a practice question
+  (`src/qa/dev_questions.jsonl`, `src/eval/baseline_notes.md`). Verification was AI-assisted
+  (checked against the cited pages) plus the user's own counts for t055 and t067; 94 are
+  `verified: true`. t091 is still `verified: false`: its "unanswerable" gold is contradicted
+  by Tata Motors p.258, which names KPMG as JLR Automotive's statutory auditor.
 - No evaluation runs until the gold answers are verified against the PDFs and the scoring rules
   are agreed in writing. Only verified questions will count.
 
